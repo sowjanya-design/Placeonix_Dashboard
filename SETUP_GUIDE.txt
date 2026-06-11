@@ -1,0 +1,278 @@
+# Placeonix — Local Setup Guide
+# How to download, run, and test on your laptop
+
+================================================
+PART 1: WHAT YOU NEED TO INSTALL FIRST
+================================================
+
+Install these 3 things on your laptop (one time only):
+
+1. Node.js  → https://nodejs.org  (download LTS version)
+2. MongoDB  → https://www.mongodb.com/try/download/community
+3. VS Code  → https://code.visualstudio.com  (to edit code)
+
+To verify Node.js installed correctly, open Terminal and run:
+  node --version      (should show v18 or higher)
+  npm --version       (should show 9 or higher)
+
+================================================
+PART 2: EXTRACT AND OPEN THE PROJECT
+================================================
+
+1. Download placeonix-final.zip from Claude
+2. Right-click → Extract / Unzip to a folder like:
+     Mac/Linux:  ~/Documents/placeonix/
+     Windows:    C:\Users\YourName\Documents\placeonix\
+
+3. Open VS Code → File → Open Folder → select the placeonix folder
+4. You will see:
+     placeonix.html           (marketing website)
+     placeonix-dashboard.html (student/mentor/admin portal)
+     placeonix-backend/       (Node.js API server)
+     FINAL_README.md
+
+================================================
+PART 3: TEST FRONTEND (NO SETUP NEEDED)
+================================================
+
+The HTML files work WITHOUT running any server.
+Just double-click them:
+
+  placeonix.html           → opens marketing website
+  placeonix-dashboard.html → opens the dashboard
+
+Login with demo accounts:
+  Admin:   admin@placeonix.in    / Password123
+  Mentor:  mentor@placeonix.in   / Password123
+  Student: student@placeonix.in  / Password123
+
+NOTE: In this mode, data is saved in browser localStorage.
+      To connect real data, you need the backend (Part 4).
+
+================================================
+PART 4: RUN THE BACKEND API
+================================================
+
+Open a Terminal (Mac: Cmd+Space → Terminal, Windows: search CMD)
+
+Step 1 — Go into the backend folder:
+  cd ~/Documents/placeonix/placeonix-backend
+
+Step 2 — Install all packages (do this ONCE):
+  npm install
+  (this downloads ~100MB of packages, takes 1-2 minutes)
+
+Step 3 — Create your environment file:
+  Mac/Linux:  cp .env.example .env
+  Windows:    copy .env.example .env
+
+Step 4 — Open .env in VS Code and set these values:
+  NODE_ENV=development
+  PORT=5000
+  MONGO_URI=mongodb://localhost:27017/placeonix
+  JWT_SECRET=placeonix-super-secret-key-change-this-minimum-32chars
+  JWT_REFRESH_SECRET=placeonix-refresh-secret-different-from-above-32chars
+
+  Leave all SMTP settings empty for now (emails will be logged).
+
+Step 5 — Start MongoDB on your computer:
+  Mac (Homebrew): brew services start mongodb-community
+  Windows:        MongoDB runs as a service automatically after install
+  Linux:          sudo systemctl start mongod
+
+  Verify MongoDB is running:
+    Mac/Linux:  mongosh --eval "db.adminCommand('ping')"
+    Windows:    mongosh --eval "db.adminCommand('ping')"
+  You should see: { ok: 1 }
+
+Step 6 — Load sample/demo data:
+  npm run seed
+
+  You should see:
+    MongoDB connected: localhost
+    Seeding complete!
+    Login credentials:
+      Admin:   admin@placeonix.in / Password123
+      Mentor:  mentor@placeonix.in / Password123
+      Student: student@placeonix.in / Password123
+
+Step 7 — Start the server:
+  npm run dev
+
+  You should see:
+    MongoDB connected: localhost
+    Placeonix API running on port 5000
+
+Step 8 — Test it works:
+  Open browser → http://localhost:5000
+  You should see the Placeonix API welcome page.
+
+  Try: http://localhost:5000/health
+  Should show: { "success": true, "status": "healthy" }
+
+  Try: http://localhost:5000/api/v1/courses
+  Should show a list of courses in JSON format.
+
+================================================
+PART 5: TEST API WITH POSTMAN
+================================================
+
+Postman makes it easy to test all your API endpoints.
+
+1. Download Postman free: https://www.postman.com/downloads/
+2. Open Postman → Import → Upload file
+3. Select: placeonix-backend/postman-collection.json
+4. Click "Login" request → Send
+   You will get an accessToken back.
+   Postman auto-saves it for all other requests.
+5. Try "List Courses", "Get Me", etc.
+
+================================================
+PART 6: MAKE CODE CHANGES
+================================================
+
+CHANGING FRONTEND (HTML/CSS/JS):
+  1. Open placeonix-dashboard.html in VS Code
+  2. Edit the code
+  3. Save (Ctrl+S / Cmd+S)
+  4. Refresh the browser tab
+  Changes appear immediately — no restart needed!
+
+CHANGING BACKEND (Node.js):
+  1. Edit any file in placeonix-backend/src/
+  2. Save the file
+  3. The server auto-restarts (npm run dev uses nodemon)
+  4. Test in Postman or browser
+
+CHANGING COLORS:
+  Open placeonix-dashboard.html → search for ":root{"
+  You will see all color variables like:
+    --purple:#6c3ff5;
+  Change the hex color code and save.
+
+================================================
+PART 7: COMMON ERRORS AND FIXES
+================================================
+
+ERROR: "Cannot find module 'express'"
+FIX:   Run: npm install   (you skipped this step)
+
+ERROR: "MongoDB connection failed"
+FIX 1: Start MongoDB service (see Step 5 above)
+FIX 2: Check MONGO_URI in your .env file
+
+ERROR: "Port 5000 already in use"
+FIX:   Change PORT=5001 in your .env file
+       Or kill the process using port 5000:
+       Mac/Linux: lsof -ti:5000 | xargs kill
+       Windows:   netstat -ano | findstr :5000
+                  taskkill /PID <number> /F
+
+ERROR: "JWT_SECRET must be at least 32 characters"
+FIX:   Make sure JWT_SECRET in .env is 32+ characters long
+
+ERROR: Browser shows CORS error
+FIX:   Add CLIENT_URL=http://localhost:3000 to .env
+       (or whatever URL your frontend is on)
+
+ERROR: "ENOENT: .env file not found"
+FIX:   Run: cp .env.example .env  (Mac/Linux)
+       Or:  copy .env.example .env (Windows)
+
+================================================
+PART 8: PROJECT FILE STRUCTURE
+================================================
+
+placeonix/
+├── placeonix.html              ← Marketing website (open directly)
+├── placeonix-dashboard.html    ← Dashboard (open directly)
+├── FINAL_README.md             ← Project overview
+└── placeonix-backend/          ← Backend API
+    ├── src/
+    │   ├── models/             ← Database schemas (15 files)
+    │   ├── controllers/        ← Business logic (16 files)
+    │   ├── routes/             ← API endpoints (18 files)
+    │   ├── middleware/         ← Auth + validation
+    │   ├── services/           ← Email, uploads, cron jobs
+    │   ├── utils/              ← Helpers
+    │   ├── seeders/seed.js     ← Demo data script
+    │   ├── app.js              ← Express configuration
+    │   └── server.js           ← Start point
+    ├── .env.example            ← Environment template
+    ├── package.json            ← Dependencies list
+    └── README.md               ← API documentation
+
+KEY FILES TO EDIT:
+  Dashboard colors/design → placeonix-dashboard.html (search ":root{")
+  Dashboard pages/content → placeonix-dashboard.html (search "function render")
+  API endpoints           → src/routes/*.js
+  Business logic          → src/controllers/*.js
+  Database structure      → src/models/*.js
+  Environment settings    → .env (in placeonix-backend/)
+
+================================================
+PART 9: VERCEL DEPLOYMENT (AFTER TESTING)
+================================================
+
+FRONTEND (HTML files) — Deploy to Vercel:
+  1. Create free account: https://vercel.com
+  2. Install Vercel CLI: npm install -g vercel
+  3. In your project folder: vercel
+  4. Follow the prompts — done in 2 minutes!
+  5. Your site will be at: https://placeonix.vercel.app
+
+BACKEND (Node.js) — Vercel handles this too:
+  1. Add a vercel.json file to placeonix-backend/:
+     {
+       "version": 2,
+       "builds": [{"src": "src/server.js", "use": "@vercel/node"}],
+       "routes": [{"src": "/(.*)", "dest": "src/server.js"}]
+     }
+  2. Run: vercel --cwd placeonix-backend
+  3. Add environment variables in Vercel dashboard
+     (Settings → Environment Variables → paste your .env values)
+  4. For MongoDB, use MongoDB Atlas free tier:
+     https://cloud.mongodb.com → Create free cluster
+     → Get connection string → Paste as MONGO_URI in Vercel
+
+IMPORTANT: Vercel serverless has no persistent filesystem.
+  File uploads (resumes, assignments) need a separate service.
+  Use Cloudinary (free): https://cloudinary.com
+  Or Supabase Storage (free): https://supabase.com
+
+================================================
+QUICK REFERENCE COMMANDS
+================================================
+
+# Install packages (run once)
+npm install
+
+# Start backend in development (auto-restarts on changes)
+npm run dev
+
+# Load demo data
+npm run seed
+
+# Check for code errors
+node --check src/server.js
+
+# Backend runs at:
+http://localhost:5000
+
+# API endpoints at:
+http://localhost:5000/api/v1
+
+# Health check:
+http://localhost:5000/health
+
+================================================
+NEED HELP?
+================================================
+
+If something doesn't work:
+1. Read the error message carefully
+2. Check this guide's "Common Errors" section
+3. Google the exact error message
+4. The error usually tells you exactly what to do
+
+Happy coding!

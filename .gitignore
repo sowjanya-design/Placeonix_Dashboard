@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets
+.env
+.env.local
+.env.production
+*.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Uploads / runtime
+placeonix-hub-backend/uploads/
+coverage/
+dist/
+build/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+Thumbs.db

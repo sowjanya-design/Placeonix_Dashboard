@@ -1,0 +1,74 @@
+version: '3.9'
+
+services:
+  api:
+    build: .
+    container_name: placeonix-api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-5000}:5000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 5000
+      MONGO_URI: mongodb://mongo:27017/placeonix
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_EXPIRE: ${JWT_EXPIRE:-7d}
+      JWT_REFRESH_EXPIRE: ${JWT_REFRESH_EXPIRE:-30d}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Placeonix <noreply@placeonix.in>}
+    volumes:
+      - placeonix_uploads:/app/uploads
+      - placeonix_logs:/app/logs
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - placeonix-net
+
+  mongo:
+    image: mongo:7
+    container_name: placeonix-mongo
+    restart: unless-stopped
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - placeonix_mongo_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - placeonix-net
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: placeonix-mongo-ui
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_UI_USER:-admin}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_UI_PASS:-changeme}
+    depends_on:
+      - mongo
+    networks:
+      - placeonix-net
+    profiles:
+      - tools
+
+volumes:
+  placeonix_mongo_data:
+  placeonix_uploads:
+  placeonix_logs:
+
+networks:
+  placeonix-net:
+    driver: bridge

@@ -1,0 +1,136 @@
+{
+  "info": {
+    "name": "Placeonix API",
+    "description": "Complete API collection for Placeonix backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "courseId", "value": "" },
+    { "key": "batchId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register Student",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Test\",\n  \"lastName\": \"Student\",\n  \"email\": \"test@placeonix.in\",\n  \"password\": \"Password123\",\n  \"phone\": \"+91 9876543210\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json.success) {",
+                "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                "  pm.collectionVariables.set('userId', json.data.user._id);",
+                "}"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@placeonix.in\",\n  \"password\": \"Password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Me",
+          "request": { "method": "GET", "url": "{{baseUrl}}/auth/me" }
+        },
+        {
+          "name": "Logout",
+          "request": { "method": "POST", "url": "{{baseUrl}}/auth/logout" }
+        }
+      ]
+    },
+    {
+      "name": "Courses",
+      "item": [
+        {
+          "name": "List Courses",
+          "request": { "method": "GET", "url": "{{baseUrl}}/courses" }
+        },
+        {
+          "name": "Create Course",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/courses",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"New Course\",\n  \"category\": \"Web Development\",\n  \"description\": \"Course description\",\n  \"duration\": \"4 Months\",\n  \"fee\": { \"amount\": 45000 },\n  \"modules\": [\n    {\n      \"order\": 1,\n      \"title\": \"Module 1\",\n      \"duration\": \"2 weeks\",\n      \"topics\": [{ \"title\": \"Topic A\" }]\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Add Module",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/courses/{{courseId}}/modules",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"New Module\",\n  \"duration\": \"1 week\",\n  \"topics\": []\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Overview",
+          "request": { "method": "GET", "url": "{{baseUrl}}/analytics/overview" }
+        },
+        {
+          "name": "Monthly Enrollments",
+          "request": { "method": "GET", "url": "{{baseUrl}}/analytics/enrollments/monthly?year=2025" }
+        },
+        {
+          "name": "Placement Stats",
+          "request": { "method": "GET", "url": "{{baseUrl}}/analytics/placements" }
+        }
+      ]
+    },
+    {
+      "name": "Leads",
+      "item": [
+        {
+          "name": "Submit Inquiry (Public)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/leads",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Inquirer\",\n  \"lastName\": \"User\",\n  \"email\": \"inquiry@example.com\",\n  \"phone\": \"+91 9876500000\",\n  \"message\": \"Interested in Full Stack course\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
