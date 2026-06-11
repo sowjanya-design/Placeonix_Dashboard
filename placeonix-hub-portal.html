@@ -772,8 +772,13 @@ async function apiFetch(path, opts) {
   var headers = { 'Content-Type': 'application/json' };
   if (_token) headers['Authorization'] = 'Bearer ' + _token;
   var res = await fetch(API_BASE + path, Object.assign({}, opts, { headers: headers }));
-  var json = await res.json();
-  if (!res.ok) throw new Error(json.message || 'Request failed');
+  var json;
+  try { json = await res.json(); } catch (e) { json = {}; }
+  if (!res.ok) {
+    var err = new Error(json.message || ('Request failed (' + res.status + ')'));
+    err.status = res.status;
+    throw err;
+  }
   return json;
 }
 
@@ -981,7 +986,10 @@ async function doLogin() {
     }, 350);
   } catch (e) {
     var isNetworkErr = (e instanceof TypeError) || e.message === 'Failed to fetch' || e.message.includes('NetworkError') || e.message.includes('fetch');
-    if (isNetworkErr) {
+    // Treat an unreachable / database-less backend (e.g. a Vercel deploy with no
+    // MONGO_URI set yet) as "offline" so the demo experience still works.
+    var isBackendDown = isNetworkErr || e.status >= 500 || /database|MONGO_URI/i.test(e.message);
+    if (isBackendDown) {
       // Backend offline ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â try demo mode with known demo credentials
       var demoUser = _DEMO_USERS[email];
       if (demoUser && password === 'Password123') {
