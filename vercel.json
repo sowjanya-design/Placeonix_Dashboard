@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "placeonix-hub-backend/api/index.js", "use": "@vercel/node" },
+    { "src": "placeonix-hub-portal.html", "use": "@vercel/static" },
+    { "src": "placeonix-website.html", "use": "@vercel/static" },
+    { "src": "login-illustration.svg", "use": "@vercel/static" },
+    { "src": "placeonix-logo.png", "use": "@vercel/static" },
+    { "src": "placeonix-hub-logo.PNG", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "placeonix-hub-backend/api/index.js" },
+    { "src": "/health", "dest": "placeonix-hub-backend/api/index.js" },
+    { "src": "/", "dest": "/placeonix-hub-portal.html" },
+    { "src": "/website", "dest": "/placeonix-website.html" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/placeonix-hub-portal.html" }
+  ]
+}
