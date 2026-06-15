@@ -823,7 +823,7 @@ var _demoMode = false;
 
 // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ DEMO DATA (used when backend is offline) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 var _DEMO_USERS = {
-  'admin@placeonix.in':   { _id:'demo-adm', firstName:'Rajesh',  lastName:'Kumar',  email:'admin@placeonix.in',  role:'admin',  status:'active' },
+  'admin@placeonix.in':   { _id:'demo-adm', firstName:'Avinash', lastName:'Murari', email:'admin@placeonix.in',  role:'admin',  status:'active' },
   'mentor@placeonix.in':  { _id:'demo-mnt', firstName:'Priya',   lastName:'Sharma', email:'mentor@placeonix.in', role:'mentor', status:'active' },
   'student@placeonix.in': { _id:'demo-std', firstName:'Arjun',   lastName:'Reddy',  email:'student@placeonix.in',role:'student',status:'active', studentProfile:{ enrollmentId:'STU10023', skills:['JavaScript','React','Node.js','HTML/CSS','MongoDB'] } }
 };
@@ -856,6 +856,13 @@ var _DEMO_MENTORS = [
   { _id:'mn2', firstName:'Arun', lastName:'Verma', email:'arun@placeonix.in', role:'mentor', status:'active', mentorProfile:{ specialization:['Data Science','Python'], assignedStudents:[1,2,3,4,5] } },
   { _id:'mn3', firstName:'Kavya', lastName:'Nair', email:'kavya@placeonix.in', role:'mentor', status:'active', mentorProfile:{ specialization:['UI/UX Design'], assignedStudents:[1,2,3] } },
   { _id:'mn4', firstName:'Rohan', lastName:'Mehta', email:'rohan@placeonix.in', role:'mentor', status:'active', mentorProfile:{ specialization:['Cloud & DevOps'], assignedStudents:[1,2] } }
+];
+var _DEMO_STUDENTS = [
+  { _id:'st1', firstName:'Arjun', lastName:'Reddy', email:'arjun@placeonix.in', role:'student', status:'active', studentProfile:{ enrollmentId:'STU10023' } },
+  { _id:'st2', firstName:'Sneha', lastName:'Patel', email:'sneha@placeonix.in', role:'student', status:'active', studentProfile:{ enrollmentId:'STU10024' } },
+  { _id:'st3', firstName:'Vikram', lastName:'Singh', email:'vikram@placeonix.in', role:'student', status:'active', studentProfile:{ enrollmentId:'STU10025' } },
+  { _id:'st4', firstName:'Meera', lastName:'Joshi', email:'meera@placeonix.in', role:'student', status:'active', studentProfile:{ enrollmentId:'STU10026' } },
+  { _id:'st5', firstName:'Karthik', lastName:'Iyer', email:'karthik@placeonix.in', role:'student', status:'active', studentProfile:{ enrollmentId:'STU10027' } }
 ];
 var _DEMO_BATCHES = [
   { _id:'b1', name:'FSWD Batch A — Morning', course:{title:'Full Stack Web Development'}, mentor:{firstName:'Priya',lastName:'Sharma'}, status:'active', capacity:30, students:new Array(24), startDate:new Date().toISOString() },
@@ -964,6 +971,7 @@ function _demoResponse(path) {
   if (p==='/analytics/placements') return { success:true, data:{ totalApplications:48, totalPlaced:40, placementRate:83, avgPackage:480000, highestPackage:1200000, lowestPackage:300000 } };
   if (p==='/analytics/revenue') return { success:true, data:{ summary:{ totalRevenue:2150000, totalDue:430000, totalCommitted:2580000 }, monthly:[] } };
   if (p.indexOf('/users')===0 && path.indexOf('role=mentor')>0) return { success:true, data:_DEMO_MENTORS, meta:{total:_DEMO_MENTORS.length} };
+  if (p.indexOf('/users')===0 && path.indexOf('role=student')>0) return { success:true, data:_DEMO_STUDENTS, meta:{total:124} };
   if (p.startsWith('/users')) return { success:true, data:[], meta:{total:0} };
   return { success:true, data:[], meta:{total:0,page:1,limit:20,pages:1} };
 }
@@ -993,7 +1001,7 @@ function _showDemoBanner() {
   var b = document.createElement('div');
   b.id = 'demoBanner';
   b.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#f59e0b;color:#fff;text-align:center;padding:.55rem 1rem;font-size:.78rem;font-weight:600;z-index:9999;letter-spacing:.2px';
-  b.innerHTML = '&#9888; Demo Mode ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Backend offline. Showing sample data. Start backend (<code style="background:rgba(0,0,0,.15);padding:.1rem .35rem;border-radius:4px">npm run dev</code>) for live data.';
+  b.innerHTML = '&#9888; Demo Mode &mdash; backend not connected, showing sample data. Connect a database for live data.';
   document.body.appendChild(b);
   // push pages area up so banner doesn't cover content
   var pg = document.getElementById('pages');
