@@ -1,0 +1,14 @@
+{
+  "name": "placeonix-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Placeonix Hub — convenience scripts that delegate to the backend + portal server",
+  "scripts": {
+    "dev": "npm --prefix placeonix-hub-backend run dev",
+    "start": "npm --prefix placeonix-hub-backend start",
+    "seed": "npm --prefix placeonix-hub-backend run seed",
+    "install:backend": "npm --prefix placeonix-hub-backend install",
+    "portal": "node _serve.js",
+    "serve": "node _serve.js"
+  }
+}
