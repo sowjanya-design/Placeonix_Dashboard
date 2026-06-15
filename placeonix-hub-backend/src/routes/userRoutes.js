@@ -10,6 +10,7 @@ router.use(protect);
 
 // Self routes
 router.get('/me/stats', userCtrl.myStats);
+router.get('/me/enrollments', userCtrl.myEnrollments);
 router.get('/my-students', authorize('mentor', 'admin'), userCtrl.myStudents);
 
 // Admin only
@@ -28,6 +29,7 @@ router.post(
   userCtrl.createUser
 );
 
+router.get('/:id/enrollments', authorize('admin', 'mentor'), userCtrl.userEnrollments);
 router.get('/:id', userCtrl.getUser);
 router.patch('/:id', ownerOrAdmin('id'), userCtrl.updateUser);
 router.delete('/:id', authorize('admin'), userCtrl.deleteUser);

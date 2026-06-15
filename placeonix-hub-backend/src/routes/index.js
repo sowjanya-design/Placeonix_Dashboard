@@ -14,6 +14,7 @@ router.use('/notifications', require('./notificationRoutes'));
 router.use('/leads', require('./leadRoutes'));
 router.use('/reviews', require('./reviewRoutes'));
 router.use('/resources', require('./resourceRoutes'));
+router.use('/join-requests', require('./joinRequestRoutes'));
 router.use('/payments', require('./paymentRoutes'));
 router.use('/certificates', require('./certificateRoutes'));
 router.use('/uploads', require('./uploadRoutes'));

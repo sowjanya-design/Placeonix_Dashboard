@@ -122,6 +122,31 @@ exports.myStats = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, 200, 'Stats fetched', stats);
 });
 
+// @desc   Current student's enrolled courses (with batch mode + progress)
+// @route  GET /api/v1/users/me/enrollments
+exports.myEnrollments = asyncHandler(async (req, res) => {
+  const enrollments = await Enrollment.find({ student: req.user._id })
+    .populate('course', 'title category color shortDescription description duration fee modules')
+    .populate({
+      path: 'batch',
+      select: 'name code mode venue schedule mentor',
+      populate: { path: 'mentor', select: 'firstName lastName' },
+    })
+    .sort('-enrollmentDate');
+
+  return ApiResponse.success(res, 200, 'Enrollments fetched', enrollments);
+});
+
+// @desc   Enrollments for a specific student (admin/mentor) — used for recording payments
+// @route  GET /api/v1/users/:id/enrollments
+exports.userEnrollments = asyncHandler(async (req, res) => {
+  const enrollments = await Enrollment.find({ student: req.params.id })
+    .populate('course', 'title')
+    .populate('batch', 'name code')
+    .sort('-enrollmentDate');
+  return ApiResponse.success(res, 200, 'Enrollments fetched', enrollments);
+});
+
 // @desc   Get students assigned to current mentor
 // @route  GET /api/v1/users/my-students
 exports.myStudents = asyncHandler(async (req, res) => {
