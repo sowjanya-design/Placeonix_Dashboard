@@ -4,16 +4,22 @@ const fs = require('fs');
 const crypto = require('crypto');
 const AppError = require('../utils/AppError');
 
-// Ensure upload directory exists
-const uploadDir = process.env.FILE_UPLOAD_PATH || './uploads';
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+// On serverless platforms (Vercel/Lambda) the project dir is read-only — only
+// /tmp is writable. Pick a writable path and never let mkdir crash module load.
+const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+const uploadDir = process.env.FILE_UPLOAD_PATH || (isServerless ? '/tmp/uploads' : './uploads');
+try {
+  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+} catch (e) {
+  // read-only filesystem — disk uploads won't work here (use S3/Cloudinary), but boot must not crash
 }
 
 // Subdirectories per resource type
 const ensureDir = (subdir) => {
   const dir = path.join(uploadDir, subdir);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  try {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  } catch (e) { /* read-only fs */ }
   return dir;
 };
 
