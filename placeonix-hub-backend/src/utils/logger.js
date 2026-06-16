@@ -16,21 +16,27 @@ const transports = [
 ];
 
 // File transports need a writable filesystem. Skip them on serverless
-// platforms (e.g. Vercel) where the project dir is read-only.
-if (!process.env.VERCEL) {
-  transports.push(
-    new winston.transports.File({
-      filename: path.join(__dirname, '../../logs/error.log'),
-      level: 'error',
-      maxsize: 5242880,
-      maxFiles: 5,
-    }),
-    new winston.transports.File({
-      filename: path.join(__dirname, '../../logs/combined.log'),
-      maxsize: 5242880,
-      maxFiles: 5,
-    })
-  );
+// platforms (Vercel/AWS Lambda) and in production where the dir may be
+// read-only. Wrapped in try/catch so a filesystem error can never crash boot.
+const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NODE_ENV === 'production';
+if (!isServerless) {
+  try {
+    transports.push(
+      new winston.transports.File({
+        filename: path.join(__dirname, '../../logs/error.log'),
+        level: 'error',
+        maxsize: 5242880,
+        maxFiles: 5,
+      }),
+      new winston.transports.File({
+        filename: path.join(__dirname, '../../logs/combined.log'),
+        maxsize: 5242880,
+        maxFiles: 5,
+      })
+    );
+  } catch (e) {
+    // read-only filesystem — console logging only
+  }
 }
 
 const logger = winston.createLogger({

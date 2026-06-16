@@ -9,11 +9,16 @@ async function ensureDB() {
   if (mongoose.connection.readyState === 1) return; // already connected
   if (!process.env.MONGO_URI) throw new Error('MONGO_URI is not set');
   if (!connPromise) {
-    connPromise = mongoose.connect(process.env.MONGO_URI, {
-      autoIndex: false,
-      serverSelectionTimeoutMS: 8000,
-      maxPoolSize: 5,
-    });
+    connPromise = mongoose
+      .connect(process.env.MONGO_URI, {
+        autoIndex: false,
+        serverSelectionTimeoutMS: 8000,
+        maxPoolSize: 5,
+      })
+      .catch((err) => {
+        connPromise = null; // allow a retry on the next invocation
+        throw err;
+      });
   }
   await connPromise;
 }
