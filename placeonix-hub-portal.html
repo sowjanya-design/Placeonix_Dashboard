@@ -2643,11 +2643,11 @@ function convertLead(id){
       {name:'password',label:'Temp Password',value:'Password123',required:true,help:'Student can change after first login.'}
     ],
     onSubmit:async function(v){
-      if(_demoMode){ toast('Lead converted to student (demo)','success'); return refreshPage(); }
+      if(_demoMode){ toast('Lead converted to student (demo)','success'); refreshPage(); setTimeout(function(){ showCredentials('Student', v.email, v.password); },80); return; }
       v.role='student';
       await apiFetch('/users',{method:'POST',body:JSON.stringify(v)});
       try{ await apiFetch('/leads/'+id,{method:'PATCH',body:JSON.stringify({status:'converted'})}); }catch(e){}
-      toast('Lead converted &mdash; student account created','success'); refreshPage();
+      toast('Lead converted - student account created','success'); refreshPage(); setTimeout(function(){ showCredentials('Student', v.email, v.password); },80);
     }
   });
 }
@@ -3480,17 +3480,37 @@ function addUser(role){
     fields:[
       {name:'firstName',label:'First Name',required:true},
       {name:'lastName',label:'Last Name',required:true},
-      {name:'email',label:'Email',type:'email',required:true},
-      {name:'phone',label:'Phone',type:'tel',placeholder:'+91…'},
-      {name:'password',label:'Temp Password',value:'Password123',required:true,help:'Minimum 8 characters. User can change after first login.'}
+      {name:'email',label:'Login Email',type:'email',required:true,help:'They log in with this email.'},
+      {name:'phone',label:'Phone',type:'tel',placeholder:'+91...'},
+      {name:'password',label:'Login Password (share with the '+label.toLowerCase()+')',value:'Password123',required:true,help:'This is the password they use to log in. Keep the default or set your own (min 8 chars). They can change it later.'}
     ],
     onSubmit:async function(v){
-      if(_demoMode){ toast(label+' "'+v.firstName+'" created (demo)','success'); return refreshPage(); }
+      if(v.password && v.password.length<8) throw new Error('Password must be at least 8 characters.');
+      var em=v.email, pw=v.password;
+      if(_demoMode){ toast(label+' "'+v.firstName+'" created (demo)','success'); refreshPage(); setTimeout(function(){ showCredentials(label, em, pw); },80); return; }
       v.role=role;
       await apiFetch('/users',{method:'POST',body:JSON.stringify(v)});
       toast(label+' created successfully','success'); refreshPage();
+      setTimeout(function(){ showCredentials(label, em, pw); }, 80);
     }
   });
+}
+var _lastCreds = { email:'', password:'' };
+function showCredentials(label, email, password){
+  _lastCreds = { email:email, password:password };
+  var body = '<div style="font-size:.85rem;color:var(--ink2);line-height:1.6;margin-bottom:.9rem">&#9989; '+label+' account created. Share these login details:</div>'+
+    '<div style="background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:.6rem 1rem">'+
+      '<div style="display:flex;justify-content:space-between;gap:1rem;padding:.45rem 0"><span style="color:var(--muted);font-size:.82rem">Email</span><b style="font-family:monospace;font-size:.85rem">'+email+'</b></div>'+
+      '<div style="display:flex;justify-content:space-between;gap:1rem;padding:.45rem 0;border-top:1px solid var(--line)"><span style="color:var(--muted);font-size:.82rem">Password</span><b style="font-family:monospace;font-size:.85rem">'+password+'</b></div>'+
+    '</div>'+
+    '<div style="font-size:.74rem;color:var(--muted);margin-top:.7rem">&#128274; They can change this password after first login.</div>';
+  var foot = '<button class="btn-secondary" onclick="copyCreds()">&#10697; Copy</button><button class="btn-primary" onclick="closeModal()">Done</button>';
+  _buildModal('Login Details', body, foot);
+}
+function copyCreds(){
+  var txt = 'Placeonix login\nEmail: '+_lastCreds.email+'\nPassword: '+_lastCreds.password;
+  if(navigator.clipboard){ navigator.clipboard.writeText(txt).then(function(){ toast('Login details copied','success'); }, function(){ toast('Could not copy','error'); }); }
+  else { toast('Email: '+_lastCreds.email+' / Password: '+_lastCreds.password,'info'); }
 }
 async function viewEntity(kind, id){
   var path = kind==='user'?'/users/'+id : kind==='batch'?'/batches/'+id : kind==='course'?'/courses/'+id : kind==='drive'?'/placements/'+id : null;
