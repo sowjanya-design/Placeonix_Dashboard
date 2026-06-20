@@ -6,7 +6,9 @@
     { "src": "placeonix-website.html", "use": "@vercel/static" },
     { "src": "login-illustration.svg", "use": "@vercel/static" },
     { "src": "placeonix-logo.png", "use": "@vercel/static" },
-    { "src": "placeonix-hub-logo.PNG", "use": "@vercel/static" }
+    { "src": "placeonix-hub-logo.PNG", "use": "@vercel/static" },
+    { "src": "manifest.json", "use": "@vercel/static" },
+    { "src": "sw.js", "use": "@vercel/static" }
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "placeonix-hub-backend/api/index.js" },

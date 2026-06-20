@@ -4,7 +4,14 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Placeonix ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Dashboard</title>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#5b5fc7"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="Placeonix"/>
+<link rel="apple-touch-icon" href="placeonix-hub-logo.PNG"/>
+<link rel="icon" href="placeonix-hub-logo.PNG"/>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -864,6 +871,12 @@ var _DEMO_STUDENTS = [
   { _id:'st4', firstName:'Meera', lastName:'Joshi', email:'meera@placeonix.in', role:'student', status:'active', studentProfile:{ enrollmentId:'STU10026' } },
   { _id:'st5', firstName:'Karthik', lastName:'Iyer', email:'karthik@placeonix.in', role:'student', status:'active', studentProfile:{ enrollmentId:'STU10027' } }
 ];
+var _DEMO_LEADERBOARD = [
+  { id:'demo-std', name:'Arjun Reddy', progress:72, attendance:88, points:72*10+88*5, rank:1 },
+  { id:'st2', name:'Sneha Patel', progress:63, attendance:71, points:63*10+71*5, rank:2 },
+  { id:'st3', name:'Vikram Singh', progress:45, attendance:80, points:45*10+80*5, rank:3 },
+  { id:'st4', name:'Meera Joshi', progress:38, attendance:66, points:38*10+66*5, rank:4 }
+];
 var _DEMO_BATCHES = [
   { _id:'b1', name:'FSWD Batch A — Morning', course:{title:'Full Stack Web Development'}, mentor:{firstName:'Priya',lastName:'Sharma'}, status:'active', capacity:30, students:new Array(24), startDate:new Date().toISOString() },
   { _id:'b2', name:'Data Science Batch B', course:{title:'Data Structures & Algorithms'}, mentor:{firstName:'Arun',lastName:'Verma'}, status:'active', capacity:25, students:new Array(18) },
@@ -938,6 +951,8 @@ function _demoResponse(path) {
   if (p==='/auth/login'||p==='/auth/me') return { success:true, data:{ user:_currentUser, accessToken:'demo' } };
   if (p==='/auth/logout') return { success:true };
   if (p==='/users/me/enrollments') return { success:true, data:_DEMO_ENROLLMENTS };
+  if (p==='/users/leaderboard') return { success:true, data:_DEMO_LEADERBOARD };
+  if (p.indexOf('/users/me/enrollments/')===0 && p.indexOf('/progress')>0) return { success:true, data:{ overall:50, completedModules:[] } };
   if (p==='/users/me/stats') {
     if(role==='student') return { success:true, data:{ enrolledCourses:2, avgProgress:56 } };
     if(role==='mentor')  return { success:true, data:{ myStudents:18 } };
@@ -1085,6 +1100,7 @@ var ROLES = {
       {id:'certificates',label:'Certificates',ico:'award'},
       {id:'resources',label:'Resources',ico:'file'},
       {id:'reviews',label:'Reviews',ico:'star'},
+      {id:'leaderboard',label:'Leaderboard',ico:'award'},
       {id:'announcements',label:'Announcements',ico:'bell'},
       {id:'reports',label:'Reports',ico:'chart'},
       {id:'settings',label:'Settings',ico:'settings'}
@@ -1102,6 +1118,7 @@ var ROLES = {
       {id:'requests',label:'Online Requests',ico:'target'},
       {id:'resources',label:'Resources',ico:'file'},
       {id:'reviews',label:'Feedback',ico:'star'},
+      {id:'leaderboard',label:'Leaderboard',ico:'award'},
       {id:'announcements',label:'Announcements',ico:'bell'},
       {id:'profile',label:'Profile',ico:'user'}
     ]
@@ -1118,6 +1135,7 @@ var ROLES = {
       {id:'resources',label:'Resources',ico:'file'},
       {id:'placements',label:'Placements',ico:'briefcase'},
       {id:'certificates',label:'Certificates',ico:'award'},
+      {id:'leaderboard',label:'Leaderboard',ico:'star'},
       {id:'payments',label:'Fees',ico:'card'},
       {id:'announcements',label:'Announcements',ico:'bell'},
       {id:'profile',label:'Profile',ico:'user'},
@@ -1310,7 +1328,7 @@ async function showPage(id) {
     resources: 'Resources', students: 'Students', mentors: 'Mentors', batches: 'Batches',
     courses: 'Courses', reports: 'Reports & Analytics', settings: 'Settings',
     leads: 'Leads (CRM)', payments: 'Payments', certificates: 'Certificates', reviews: 'Reviews & Feedback',
-    requests: 'Online Join Requests'
+    requests: 'Online Join Requests', leaderboard: 'Leaderboard'
   };
   document.getElementById('topbarTitle').textContent = labels[id] || id;
   var pagesEl = document.getElementById('pages');
@@ -1344,6 +1362,7 @@ async function renderPage(id) {
   if (id === 'reviews') return renderReviews(r);
   if (id === 'reports') return renderReports();
   if (id === 'requests') return renderJoinRequests();
+  if (id === 'leaderboard') return renderLeaderboard(r);
   if (id === 'settings') return renderSettings();
   return '<div style="padding:2rem;text-align:center;color:var(--muted)">Coming soon</div>';
 }
@@ -1824,7 +1843,21 @@ async function renderMyLearning(){
       ? '<div class="mode-note offline"><div>&#127979; <b>Offline batch</b> at '+(b.venue||'campus')+'. Recordings of every class are available below. Can\'t attend in person? You can occasionally join the live online session.</div>'+
           '<button class="sched-btn sb-join" onclick="requestOnline(\''+(b._id||'')+'\',\''+ctitle+'\')">&#128421; Request to Join Online</button></div>'
       : '<div class="mode-note online"><div>&#128250; <b>Live online batch</b> &mdash; join every class from anywhere. Missed one? The recording appears here afterwards.</div></div>';
-    var panel = note +
+    // Curriculum with mark-complete (progress tracking)
+    var mods = c.modules || [];
+    var completedMods = ((e.progress && e.progress.moduleProgress) || []).filter(function(m){ return m.progress>=100; }).map(function(m){ return String(m.moduleId); });
+    var curriculum = mods.length
+      ? '<div class="learn-sec-title">&#128216; Curriculum <span style="font-weight:600;color:var(--muted);font-size:.74rem">&bull; tick off modules as you finish ('+completedMods.length+'/'+mods.length+')</span></div>'+
+        '<div class="sched-list" style="margin-bottom:1.3rem">'+mods.map(function(m){
+          var done = completedMods.indexOf(String(m._id))>=0;
+          return '<div class="sched-row" style="align-items:center">'+
+            '<div onclick="toggleModule(\''+e._id+'\',\''+m._id+'\','+(!done)+')" title="Mark '+(done?'incomplete':'complete')+'" style="cursor:pointer;flex-shrink:0;width:26px;height:26px;border-radius:8px;border:2px solid '+(done?'var(--green)':'var(--line)')+';background:'+(done?'var(--green)':'#fff')+';display:flex;align-items:center;justify-content:center;color:#fff;font-size:.85rem;font-weight:800">'+(done?'&#10003;':'')+'</div>'+
+            '<div class="sched-main"><div class="sched-title" style="'+(done?'color:var(--muted)':'')+'">'+(m.title||'Module')+'</div>'+
+            ((m.topics&&m.topics.length)?'<div class="sched-covers">'+m.topics.map(function(t){return t.title;}).join(' &bull; ')+'</div>':'')+'</div>'+
+          '</div>';
+        }).join('')+'</div>'
+      : '';
+    var panel = note + curriculum +
       '<div class="learn-sec-title">&#128197; Class Schedule '+
         '<span style="font-weight:600;color:var(--muted);font-size:.74rem">&bull; '+modeHint+'</span></div>'+
       (bs.length
@@ -2549,6 +2582,76 @@ async function gradeSubmission(aid, sid){
   }catch(e){ toast(e.message,'error'); }
 }
 
+// ───────────────────────── PROGRESS TRACKING ─────────────────────────
+async function toggleModule(eid, mid, completed){
+  if(_demoMode){ toast(completed?'Module marked complete (demo)':'Marked incomplete (demo)','success'); return; }
+  try{
+    var res=await apiFetch('/users/me/enrollments/'+eid+'/progress',{method:'PATCH',body:JSON.stringify({moduleId:mid,completed:completed})});
+    toast(completed?('Module completed! Course progress: '+((res.data&&res.data.overall)||0)+'%'):'Marked incomplete','success');
+    refreshPage();
+  }catch(e){ toast(e.message,'error'); }
+}
+
+// ───────────────────────── GAMIFICATION / LEADERBOARD ─────────────────────────
+function _badgesFor(r){
+  var b=[];
+  if(r.rank===1) b.push('&#129351; Topper');
+  else if(r.rank<=3) b.push('&#127942; Top 3');
+  if(r.attendance>=90) b.push('&#9989; Perfect Attendance');
+  if(r.progress>=80) b.push('&#128218; Fast Learner');
+  if(r.progress>=100) b.push('&#127891; Course Complete');
+  return b;
+}
+async function renderLeaderboard(role){
+  var res = await apiFetch('/users/leaderboard');
+  var rows = res.data || [];
+  var meId = _currentUser ? _currentUser._id : null;
+  var medal = ['&#129351;','&#129352;','&#129353;'];
+  var list = rows.length ? rows.map(function(r,i){
+    var isMe = String(r.id)===String(meId);
+    var rankBadge = i<3 ? '<span style="font-size:1.4rem">'+medal[i]+'</span>' : '<span style="font-weight:800;color:var(--muted);width:1.4rem;display:inline-block;text-align:center">'+r.rank+'</span>';
+    var badges = _badgesFor(r).map(function(x){ return '<span class="badge" style="background:var(--purple-lt);color:var(--purple);margin-left:.3rem">'+x+'</span>'; }).join('');
+    return '<div class="course-row" style="'+(isMe?'border:1.5px solid var(--purple);background:var(--purple-lt)':'')+'">'+
+      '<div style="width:34px;text-align:center;flex-shrink:0">'+rankBadge+'</div>'+
+      '<div class="course-info"><div class="course-name">'+r.name+(isMe?' <span style="font-size:.7rem;color:var(--purple);font-weight:700">(You)</span>':'')+'</div>'+
+      '<div class="course-desc">'+r.progress+'% progress &bull; '+r.attendance+'% attendance'+badges+'</div></div>'+
+      '<div style="text-align:right;flex-shrink:0"><div style="font-size:1.2rem;font-weight:800;color:var(--purple)">'+r.points.toLocaleString('en-IN')+'</div><div style="font-size:.66rem;color:var(--muted);font-weight:600">POINTS</div></div>'+
+    '</div>';
+  }).join('') : '<div style="padding:1.5rem;color:var(--muted)">No students ranked yet.</div>';
+  var me = rows.filter(function(r){ return String(r.id)===String(meId); })[0];
+  var myCard = (role==='student' && me) ? '<div class="welcome-banner" style="margin-bottom:1.3rem"><div>'+
+    '<div class="wb-title">You are ranked #'+me.rank+' of '+rows.length+' &#127919;</div>'+
+    '<div class="wb-sub">'+me.points.toLocaleString('en-IN')+' points &bull; '+me.progress+'% progress &bull; '+me.attendance+'% attendance. Keep going to climb the leaderboard!</div>'+
+    '</div><div class="wb-illus">&#127942;</div></div>' : '';
+  return myCard + '<div class="section-head"><span class="section-title">Leaderboard '+
+    '<span style="font-size:.72rem;font-weight:600;color:var(--muted)">points = progress &times;10 + attendance &times;5</span></span></div>'+
+    '<div class="course-list">'+list+'</div>';
+}
+
+// ───────────────────────── LEAD → STUDENT CONVERSION ─────────────────────────
+function convertLead(id){
+  var l = _leadsCache.find ? null : null;
+  var lead = (_leadsCache && _leadsCache.filter) ? _leadsCache.filter(function(x){return x._id===id;})[0] : null;
+  lead = lead || {};
+  formModal({
+    title:'Convert Lead to Student', submitLabel:'Create Student',
+    fields:[
+      {name:'firstName',label:'First Name',value:lead.firstName||'',required:true},
+      {name:'lastName',label:'Last Name',value:lead.lastName||'',required:true},
+      {name:'email',label:'Email',type:'email',value:lead.email||'',required:true},
+      {name:'phone',label:'Phone',type:'tel',value:lead.phone||''},
+      {name:'password',label:'Temp Password',value:'Password123',required:true,help:'Student can change after first login.'}
+    ],
+    onSubmit:async function(v){
+      if(_demoMode){ toast('Lead converted to student (demo)','success'); return refreshPage(); }
+      v.role='student';
+      await apiFetch('/users',{method:'POST',body:JSON.stringify(v)});
+      try{ await apiFetch('/leads/'+id,{method:'PATCH',body:JSON.stringify({status:'converted'})}); }catch(e){}
+      toast('Lead converted &mdash; student account created','success'); refreshPage();
+    }
+  });
+}
+
 function markAnnRead(id) {
   apiFetch('/announcements/' + id + '/read', { method: 'POST' }).catch(function(){});
 }
@@ -2956,6 +3059,7 @@ async function renderLeads(){
       '<div class="course-desc">'+(l.email||'')+' &bull; '+(l.phone||'')+'</div></div>'+
       '<div style="font-size:.72rem;color:var(--muted);margin-right:.6rem">'+(l.courseInterestedName||l.source||'')+'</div>'+
       '<span class="badge" style="background:'+sc[0]+';color:'+sc[1]+'">'+st+'</span>'+
+      (st!=='converted' ? '<button class="continue-btn" style="margin-left:.6rem;padding:.4rem .85rem;font-size:.72rem" onclick="convertLead(\''+l._id+'\')">Convert</button>' : '<span style="margin-left:.6rem;font-size:.72rem;color:var(--green);font-weight:700">&#10003; Student</span>')+
     '</div>';
   }).join('') : '<div style="padding:1.5rem;color:var(--muted)">No leads yet.</div>';
   return '<div class="section-head"><span class="section-title">Leads — CRM ('+total+')</span><div style="display:flex;gap:.5rem"><button class="continue-btn" style="background:transparent;color:var(--ink2);border:1.5px solid var(--line)" onclick="exportLeads()">&#8681; Export CSV</button><button class="continue-btn" onclick="addLead()">+ Add Lead</button></div></div>'+

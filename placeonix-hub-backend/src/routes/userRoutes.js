@@ -11,6 +11,8 @@ router.use(protect);
 // Self routes
 router.get('/me/stats', userCtrl.myStats);
 router.get('/me/enrollments', userCtrl.myEnrollments);
+router.patch('/me/enrollments/:id/progress', authorize('student'), userCtrl.updateMyProgress);
+router.get('/leaderboard', userCtrl.leaderboard);
 router.get('/my-students', authorize('mentor', 'admin'), userCtrl.myStudents);
 
 // Admin only

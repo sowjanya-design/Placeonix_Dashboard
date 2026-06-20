@@ -137,6 +137,74 @@ exports.myEnrollments = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, 200, 'Enrollments fetched', enrollments);
 });
 
+// @desc   Student marks a module complete (updates progress)
+// @route  PATCH /api/v1/users/me/enrollments/:id/progress
+exports.updateMyProgress = asyncHandler(async (req, res, next) => {
+  const { moduleId, completed } = req.body;
+  if (!moduleId) return next(new AppError('moduleId is required', 400));
+
+  const enr = await Enrollment.findOne({ _id: req.params.id, student: req.user._id }).populate('course', 'modules');
+  if (!enr) return next(new AppError('Enrollment not found', 404));
+
+  if (!enr.progress) enr.progress = {};
+  let mp = enr.progress.moduleProgress || [];
+  const existing = mp.find((m) => String(m.moduleId) === String(moduleId));
+  if (completed) {
+    if (existing) { existing.progress = 100; existing.lastAccessed = new Date(); }
+    else mp.push({ moduleId, progress: 100, completedTopics: [], lastAccessed: new Date() });
+  } else {
+    mp = mp.filter((m) => String(m.moduleId) !== String(moduleId));
+  }
+
+  const totalModules = (enr.course && enr.course.modules && enr.course.modules.length) || mp.length || 1;
+  const completedCount = mp.filter((m) => m.progress >= 100).length;
+  enr.progress.moduleProgress = mp;
+  enr.progress.overall = Math.min(100, Math.round((completedCount / totalModules) * 100));
+  if (enr.progress.overall >= 100 && enr.status !== 'completed') {
+    enr.status = 'completed';
+    enr.completionDate = new Date();
+  }
+  await enr.save();
+  return ApiResponse.success(res, 200, 'Progress updated', {
+    overall: enr.progress.overall,
+    completedModules: mp.filter((m) => m.progress >= 100).map((m) => String(m.moduleId)),
+  });
+});
+
+// @desc   Student leaderboard (points from progress + attendance), any logged-in user
+// @route  GET /api/v1/users/leaderboard
+exports.leaderboard = asyncHandler(async (req, res) => {
+  const Attendance = require('../models/Attendance');
+  const students = await User.find({ role: 'student', status: 'active' }).select('firstName lastName studentProfile.enrollmentId');
+
+  const rows = await Promise.all(
+    students.map(async (s) => {
+      const [enrolls, att] = await Promise.all([
+        Enrollment.find({ student: s._id }).select('progress'),
+        Attendance.find({ student: s._id }).select('status'),
+      ]);
+      const avgProgress = enrolls.length
+        ? Math.round(enrolls.reduce((a, e) => a + (e.progress?.overall || 0), 0) / enrolls.length)
+        : 0;
+      const present = att.filter((a) => a.status === 'present' || a.status === 'late').length;
+      const attendance = att.length ? Math.round((present / att.length) * 100) : 0;
+      const points = avgProgress * 10 + attendance * 5;
+      return {
+        id: s._id,
+        name: `${s.firstName} ${s.lastName}`.trim(),
+        enrollmentId: (s.studentProfile && s.studentProfile.enrollmentId) || '',
+        progress: avgProgress,
+        attendance,
+        points,
+      };
+    })
+  );
+
+  rows.sort((a, b) => b.points - a.points);
+  rows.forEach((r, i) => { r.rank = i + 1; });
+  return ApiResponse.success(res, 200, 'Leaderboard fetched', rows);
+});
+
 // @desc   Enrollments for a specific student (admin/mentor) — used for recording payments
 // @route  GET /api/v1/users/:id/enrollments
 exports.userEnrollments = asyncHandler(async (req, res) => {
