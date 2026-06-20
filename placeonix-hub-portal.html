@@ -1331,7 +1331,7 @@ async function renderPage(id) {
   if (id === 'attendance-mark') return renderMarkAttendance();
   if (id === 'assignments') return renderAssignments(r);
   if (id === 'placements') return renderPlacements(r);
-  if (id === 'announcements') return renderAnnouncements();
+  if (id === 'announcements') return renderAnnouncements(r);
   if (id === 'profile') return renderProfile(r);
   if (id === 'sessions') return renderSessions(r);
   if (id === 'support') return renderSupport();
@@ -1886,11 +1886,10 @@ async function renderStudents(role) {
           '<div style="width:32px;height:32px;border-radius:8px;background:var(--purple-lt);color:var(--purple);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800">'+init+'</div>'+
           '<div><div style="font-weight:600">'+name+'</div><div style="font-size:.7rem;color:var(--muted)">'+eid+'</div></div>'+
         '</div></td>'+
-        '<td>ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</td>'+
-        '<td>ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</td>'+
-        '<td>ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</td>'+
-        '<td>ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</td>'+
-        '<td><span class="badge '+(u.status==='active'?'b-submitted':'b-pending')+'">'+u.status+'</span></td>'+
+        '<td>'+(u.email||'-')+'</td>'+
+        '<td>'+(u.phone||'-')+'</td>'+
+        '<td>'+fmtDate(u.createdAt)+'</td>'+
+        '<td><span class="badge '+(u.status==="active"?"b-active":"b-pending")+'">'+(u.status||"active")+'</span></td>'+
         '<td><button class="apply-btn" style="font-size:.7rem;padding:.35rem .7rem" onclick="viewEntity(\'user\',\''+u._id+'\')">View</button></td>'+
       '</tr>';
     }).join('');
@@ -1924,11 +1923,13 @@ async function renderStudents(role) {
   return `
   <div class="section-head">
     <span class="section-title">Students</span>
-    ${role==='admin'?'<div style="display:flex;gap:.5rem"><button class="continue-btn" style="background:transparent;color:var(--ink2);border:1.5px solid var(--line)" onclick="exportStudents()">&#8681; Export CSV</button><button class="continue-btn" onclick="addUser(\'student\')">+ Add Student</button></div>':''}
+    ${role==='admin'?'<div style="display:flex;gap:.5rem;flex-wrap:wrap"><button class="continue-btn" style="background:transparent;color:var(--ink2);border:1.5px solid var(--line)" onclick="importStudents()">&#8593; Import</button><button class="continue-btn" style="background:transparent;color:var(--ink2);border:1.5px solid var(--line)" onclick="exportStudents()">&#8681; Export CSV</button><button class="continue-btn" onclick="addUser(\'student\')">+ Add Student</button></div>':''}
   </div>
   <div style="background:#fff;border-radius:14px;border:1px solid var(--line);overflow:hidden">
     <table class="drive-table" style="width:100%">
-      <thead><tr><th>Student</th><th>Course</th><th>Batch</th><th>Progress</th><th>Attendance</th><th>Status</th>${role==='admin'?'<th>Action</th>':''}</tr></thead>
+      <thead>${role==='admin'
+        ? '<tr><th>Student</th><th>Email</th><th>Phone</th><th>Joined</th><th>Status</th><th>Action</th></tr>'
+        : '<tr><th>Student</th><th>Course</th><th>Batch</th><th>Progress</th><th>Attendance</th><th>Status</th></tr>'}</thead>
       <tbody>${rows}</tbody>
     </table>
   </div>`;
@@ -2139,43 +2140,15 @@ async function saveAttendance() {
   }
 }
 
-async function renderAssignments(role) {
-  var res = await apiFetch('/assignments?limit=20');
+var _assignmentsCache = {};
+async function renderAssignments(role){
+  var res = await apiFetch('/assignments?limit=50');
   var assignments = res.data || [];
-  if (!assignments.length) {
-    return '<div style="padding:2rem;text-align:center;color:var(--muted)">No assignments found.</div>';
-  }
-  var rows = assignments.map(function(a) {
-    var courseName = (a.course && a.course.title) ? a.course.title : 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
-    var due = a.dueDate ? fmtDate(a.dueDate) : 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
-    var now = new Date();
-    var dueD = new Date(a.dueDate);
-    var diffDays = Math.ceil((dueD - now) / 86400000);
-    var urgency = diffDays < 0 ? 'Overdue' : diffDays <= 2 ? 'Urgent' : diffDays <= 5 ? 'Due Soon' : 'Upcoming';
-    var mySubmission = null;
-    if (a.submissions && a.submissions.length && _currentUser) {
-      mySubmission = a.submissions.find(function(s){ return s.student && (s.student._id === _currentUser._id || s.student === _currentUser._id); });
-    }
-    var badgeStatus = mySubmission ? mySubmission.status : (diffDays < 0 ? 'overdue' : 'pending');
-    var actionBtn = role === 'student'
-      ? '<button class="apply-btn" onclick="submitAssignment(\''+a._id+'\')" style="'+(mySubmission?'background:var(--green)':'')+'">'+
-          (mySubmission ? 'Resubmit' : 'Submit')+'</button>'
-      : '<button class="apply-btn" onclick="reviewAssignment(\''+a._id+'\')">Review</button>';
-    return '<tr>'+
-      '<td style="font-weight:600">'+a.title+'</td>'+
-      '<td>'+courseName+'</td>'+
-      '<td>'+due+'</td>'+
-      '<td><span class="badge b-'+badgeStatus+'">'+urgency+'</span></td>'+
-      '<td>'+actionBtn+'</td>'+
-    '</tr>';
-  }).join('');
-  return `
-  <div style="background:#fff;border-radius:14px;border:1px solid var(--line);overflow:hidden">
-    <table class="assign-table" style="width:100%">
-      <thead><tr><th>Assignment</th><th>Course</th><th>Due Date</th><th>Status</th><th>Action</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </div>`;
+  _assignmentsCache = {}; assignments.forEach(function(a){ _assignmentsCache[a._id]=a; });
+  var canManage = role==='mentor'||role==='admin';
+  var head = '<div class="section-head"><span class="section-title">Assessments</span>'+(canManage?'<button class="continue-btn" onclick="addAssignment()">+ New Assignment</button>':'')+'</div>';
+  if(!assignments.length) return head+'<div style="padding:2rem;text-align:center;color:var(--muted)">No assessments yet.</div>';
+  return head+'<div class="course-list">'+assignments.map(function(a){ return canManage?mentorAssignmentCard(a):studentAssignmentCard(a); }).join('')+'</div>';
 }
 
 async function submitAssignment(id) {
@@ -2207,22 +2180,25 @@ async function renderPlacements(role) {
       myApps = (appsRes.data && appsRes.data.applications) ? appsRes.data.applications : [];
     } catch(e) {}
   }
+  _drivesCache = {}; drives.forEach(function(d){ _drivesCache[d._id]=d; });
   var appliedIds = new Set(myApps.map(function(a){ return a.drive && (a.drive._id || a.drive); }));
   var openDrives = drives.filter(function(d){ return d.status === 'open'; });
+  var isAdmin = role === 'admin';
   var tableRows = drives.map(function(d) {
     var applied = appliedIds.has(d._id);
-    var pkg = d.package ? (d.package.min ? (d.package.min/100000).toFixed(1)+' LPA' : 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') : 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
-    var deadline = d.applicationDeadline ? fmtDate(d.applicationDeadline) : 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
-    var actionBtn = role === 'student'
-      ? (applied
-          ? '<button class="apply-btn" style="background:var(--green)" disabled>Applied</button>'
-          : '<button class="apply-btn" onclick="applyDrive(\''+d._id+'\')">Apply Now</button>')
-      : '<button class="apply-btn" onclick="viewEntity(\'drive\',\''+d._id+'\')">View</button>';
+    var pkg = (d.package && d.package.min!=null) ? (d.package.min + (d.package.max!=null&&d.package.max!==d.package.min?'-'+d.package.max:'') + ' LPA') : '-';
+    var deadline = d.applicationDeadline ? fmtDate(d.applicationDeadline) : '-';
+    var actionBtn;
+    if (role === 'student') { actionBtn = applied ? '<button class="apply-btn" style="background:var(--green)" disabled>Applied</button>' : '<button class="apply-btn" onclick="applyDrive(\''+d._id+'\')">Apply Now</button>'; }
+    else if (isAdmin) { actionBtn = '<div style="display:flex;gap:.35rem"><button class="apply-btn" style="background:transparent;color:var(--ink2);border:1.5px solid var(--line)" onclick="editDrive(\''+d._id+'\')">Edit</button><button class="apply-btn" style="background:transparent;color:var(--red);border:1.5px solid var(--line)" onclick="deleteDrive(\''+d._id+'\')">Delete</button></div>'; }
+    else { actionBtn = '<button class="apply-btn" onclick="viewEntity(\'drive\',\''+d._id+'\')">View</button>'; }
+    var stColor = d.status==='open'?'b-active':d.status==='closed'?'b-due':'b-pending';
     return '<tr>'+
-      '<td><span class="co-logo">'+(d.company||'').substring(0,6)+'</span></td>'+
+      '<td><span class="co-logo">'+(d.company||'')+'</span></td>'+
       '<td>'+d.role+'</td>'+
       '<td>'+pkg+'</td>'+
       '<td>'+deadline+'</td>'+
+      '<td><span class="badge '+stColor+'">'+(d.status||'open')+'</span></td>'+
       '<td>'+actionBtn+'</td>'+
     '</tr>';
   }).join('');
@@ -2234,10 +2210,10 @@ async function renderPlacements(role) {
     <div class="place-stat"><div class="place-stat-ico">&#128203;</div><div class="place-stat-v">${myApps.length}</div><div class="place-stat-l">Applied</div></div>
     <div class="place-stat"><div class="place-stat-ico">&#127881;</div><div class="place-stat-v">${myApps.filter(function(a){return a.application&&a.application.status==='placed';}).length}</div><div class="place-stat-l">Placed</div></div>
   </div>
-  <div class="section-head"><span class="section-title">Placement Drives</span></div>
+  <div class="section-head"><span class="section-title">Placement Drives</span>${isAdmin?'<button class="continue-btn" onclick="addDrive()">+ New Drive</button>':''}</div>
   <div style="background:#fff;border-radius:14px;border:1px solid var(--line);overflow:hidden;margin-bottom:1.5rem">
     ${drives.length ? `<table class="drive-table" style="width:100%">
-      <thead><tr><th>Company</th><th>Role</th><th>Package</th><th>Deadline</th><th>Action</th></tr></thead>
+      <thead><tr><th>Company</th><th>Role</th><th>Package</th><th>Deadline</th><th>Status</th><th>Action</th></tr></thead>
       <tbody>${tableRows}</tbody>
     </table>` : '<div style="padding:2rem;text-align:center;color:var(--muted)">No placement drives available.</div>'}
   </div>
@@ -2259,28 +2235,318 @@ async function applyDrive(driveId) {
   }
 }
 
-async function renderAnnouncements() {
+var _annCache = {};
+async function renderAnnouncements(role) {
   var res = await apiFetch('/announcements?limit=20');
   var anns = res.data || [];
+  _annCache = {}; anns.forEach(function(a){ _annCache[a._id]=a; });
+  var isAdmin = role === 'admin';
+  var typeDots = { placement: 'var(--amber)', urgent: 'var(--red)', holiday: 'var(--green)', event: 'var(--blue)', general: 'var(--purple)' };
+  var head = '<div class="section-head"><span class="section-title">Announcements</span>'+
+    (isAdmin ? '<button class="continue-btn" onclick="addAnnouncement()">+ New Announcement</button>' : '')+'</div>';
   if (!anns.length) {
-    return '<div style="padding:2rem;text-align:center;color:var(--muted)">No announcements.</div>';
+    return head + '<div style="padding:2rem;text-align:center;color:var(--muted)">No announcements yet.</div>';
   }
-  var typeDots = { placement: '#f59e0b', urgent: '#ef4444', holiday: '#10b981', event: '#3b82f6', general: '#6c3ff5' };
   var rows = anns.map(function(a) {
-    var dot = typeDots[a.type] || '#6c3ff5';
+    var dot = typeDots[a.type] || 'var(--purple)';
     var pinned = a.isPinned ? '<span style="font-size:.7rem;font-weight:700;color:var(--purple);margin-left:.5rem">&#128204; Pinned</span>' : '';
-    return '<div class="ann-item" style="background:#fff" onclick="markAnnRead(\''+a._id+'\')" style="cursor:pointer">'+
-      '<div class="ann-dot" style="background:'+dot+'"></div>'+
+    var adminBtns = isAdmin
+      ? '<div style="display:flex;gap:.4rem;margin-top:.6rem"><button class="continue-btn" style="padding:.35rem .8rem;font-size:.72rem;background:transparent;color:var(--ink2);border:1.5px solid var(--line)" onclick="editAnnouncement(\''+a._id+'\')">Edit</button>'+
+        '<button class="continue-btn" style="padding:.35rem .8rem;font-size:.72rem;background:transparent;color:var(--red);border:1.5px solid var(--line)" onclick="deleteAnnouncement(\''+a._id+'\')">Delete</button></div>'
+      : '';
+    return '<div class="ann-item" style="background:#fff;align-items:stretch">'+
+      '<div class="ann-dot" style="background:'+dot+';margin-top:.4rem"></div>'+
       '<div style="flex:1">'+
-        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.3rem">'+
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.3rem;gap:.6rem">'+
           '<div class="ann-title">'+a.title+pinned+'</div>'+
-          '<span style="font-size:.7rem;color:var(--muted);white-space:nowrap;margin-left:1rem">'+fmtDate(a.publishAt||a.createdAt)+'</span>'+
+          '<span style="font-size:.7rem;color:var(--muted);white-space:nowrap">'+fmtDate(a.publishAt||a.createdAt)+'</span>'+
         '</div>'+
         '<div class="ann-body">'+(a.body||'')+'</div>'+
+        '<div style="font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:.4rem">'+(a.type||'general')+'</div>'+
+        adminBtns+
       '</div>'+
     '</div>';
   }).join('');
-  return '<div class="ann-list">' + rows + '</div>';
+  return head + '<div class="ann-list">' + rows + '</div>';
+}
+function _annForm(title, submitLabel, initial, onSubmit){
+  initial = initial || {};
+  formModal({
+    title:title, submitLabel:submitLabel,
+    fields:[
+      {name:'title',label:'Title',value:initial.title||'',required:true},
+      {name:'body',label:'Message',type:'textarea',value:initial.body||'',required:true},
+      {name:'type',label:'Type',type:'select',value:initial.type||'general',options:[{value:'general',label:'General'},{value:'placement',label:'Placement'},{value:'event',label:'Event'},{value:'holiday',label:'Holiday'},{value:'urgent',label:'Urgent'}]},
+      {name:'priority',label:'Priority',type:'select',value:initial.priority||'normal',options:[{value:'normal',label:'Normal'},{value:'high',label:'High'},{value:'low',label:'Low'}]},
+      {name:'audience',label:'Send to',type:'select',value:initial._aud||'all',options:[{value:'all',label:'Everyone'},{value:'student',label:'Students only'},{value:'mentor',label:'Mentors only'}]}
+    ],
+    onSubmit:onSubmit
+  });
+}
+function _annPayload(v){
+  var aud = v.audience==='all' ? { isPublic:true, roles:['student','mentor','admin'] } : { roles:[v.audience] };
+  return { title:v.title, body:v.body, type:v.type, priority:v.priority, audience:aud };
+}
+function addAnnouncement(){
+  _annForm('New Announcement','Send Announcement',{}, async function(v){
+    if(_demoMode){ toast('Announcement sent (demo)','success'); return refreshPage(); }
+    await apiFetch('/announcements',{method:'POST',body:JSON.stringify(_annPayload(v))});
+    toast('Announcement sent','success'); refreshPage();
+  });
+}
+function editAnnouncement(id){
+  var a=_annCache[id]||{};
+  a._aud = (a.audience&&a.audience.isPublic)?'all':((a.audience&&a.audience.roles&&a.audience.roles[0])||'all');
+  _annForm('Edit Announcement','Save Changes',a, async function(v){
+    if(_demoMode){ toast('Announcement updated (demo)','success'); return refreshPage(); }
+    await apiFetch('/announcements/'+id,{method:'PATCH',body:JSON.stringify(_annPayload(v))});
+    toast('Announcement updated','success'); refreshPage();
+  });
+}
+function deleteAnnouncement(id){
+  confirmModal('Delete Announcement','Delete this announcement for everyone?','Delete',async function(){
+    if(_demoMode){ toast('Announcement deleted (demo)','success'); return refreshPage(); }
+    await apiFetch('/announcements/'+id,{method:'DELETE'}); toast('Announcement deleted','success'); refreshPage();
+  });
+}
+
+// ── Placement drives (admin) ──
+var _drivesCache = {};
+function _driveForm(title, submitLabel, initial, onSubmit){
+  initial = initial || {};
+  formModal({
+    title:title, submitLabel:submitLabel,
+    fields:[
+      {name:'company',label:'Company',value:initial.company||'',required:true},
+      {name:'role',label:'Role',value:initial.role||'',required:true,placeholder:'e.g. Full Stack Developer'},
+      {name:'min',label:'Package — Min (LPA)',type:'number',value:(initial.package&&initial.package.min!=null)?initial.package.min:'',required:true,placeholder:'5'},
+      {name:'max',label:'Package — Max (LPA)',type:'number',value:(initial.package&&initial.package.max!=null)?initial.package.max:'',required:true,placeholder:'8'},
+      {name:'applicationDeadline',label:'Application Deadline',type:'date',value:initial.applicationDeadline?initial.applicationDeadline.slice(0,10):'',required:true},
+      {name:'vacancies',label:'Vacancies',type:'number',value:initial.vacancies||'',placeholder:'5'},
+      {name:'workMode',label:'Work Mode',type:'select',value:initial.workMode||'onsite',options:[{value:'onsite',label:'On-site'},{value:'hybrid',label:'Hybrid'},{value:'remote',label:'Remote'}]},
+      {name:'status',label:'Status',type:'select',value:initial.status||'open',options:[{value:'open',label:'Open'},{value:'draft',label:'Draft'},{value:'closed',label:'Closed'}]},
+      {name:'description',label:'Description',type:'textarea',value:initial.description||''}
+    ],
+    onSubmit:onSubmit
+  });
+}
+function _drivePayload(v){
+  return { company:v.company, role:v.role, description:v.description,
+    package:{ min:Number(v.min), max:Number(v.max), currency:'INR' },
+    applicationDeadline:v.applicationDeadline, vacancies:v.vacancies?Number(v.vacancies):undefined,
+    workMode:v.workMode, status:v.status };
+}
+function addDrive(){
+  _driveForm('New Placement Drive','Publish Drive',{}, async function(v){
+    if(_demoMode){ toast('Drive published (demo)','success'); return refreshPage(); }
+    await apiFetch('/placements',{method:'POST',body:JSON.stringify(_drivePayload(v))});
+    toast('Placement drive published','success'); refreshPage();
+  });
+}
+function editDrive(id){
+  _driveForm('Edit Drive','Save Changes', _drivesCache[id]||{}, async function(v){
+    if(_demoMode){ toast('Drive updated (demo)','success'); return refreshPage(); }
+    await apiFetch('/placements/'+id,{method:'PATCH',body:JSON.stringify(_drivePayload(v))});
+    toast('Drive updated','success'); refreshPage();
+  });
+}
+function deleteDrive(id){
+  confirmModal('Delete Drive','Delete this placement drive?','Delete',async function(){
+    if(_demoMode){ toast('Drive deleted (demo)','success'); return refreshPage(); }
+    await apiFetch('/placements/'+id,{method:'DELETE'}); toast('Drive deleted','success'); refreshPage();
+  });
+}
+
+// ── Bulk student import (CSV) ──
+function importStudents(){
+  var body =
+    '<div style="font-size:.82rem;color:var(--ink2);line-height:1.6;margin-bottom:.8rem">Upload a CSV with columns <b>firstName, lastName, email, phone</b> (header row optional). Each student gets the default password <code style="background:var(--bg);padding:.1rem .3rem;border-radius:4px">Password123</code>.</div>'+
+    '<div class="mf-field"><label>CSV file</label><input type="file" id="impFile" accept=".csv,text/csv" style="width:100%;font-size:.82rem"></div>'+
+    '<div style="text-align:center;font-size:.72rem;color:var(--muted);margin:.3rem 0 .6rem">&mdash; or paste rows &mdash;</div>'+
+    '<div class="mf-field"><textarea id="impText" placeholder="Riya,Sharma,riya@example.com,9876500000&#10;Arjun,Mehta,arjun@example.com,9876500001"></textarea></div>'+
+    '<a href="#" onclick="downloadStudentTemplate();return false;" style="font-size:.75rem;color:var(--purple);font-weight:700">&#8681; Download CSV template</a>'+
+    '<div class="mf-err" id="impErr"></div>'+
+    '<div id="impProgress" style="font-size:.8rem;color:var(--muted);margin-top:.6rem"></div>';
+  _buildModal('Import Students (Bulk)', body, '<button class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary" id="impBtn" onclick="runImportStudents()">Import</button>');
+}
+function downloadStudentTemplate(){
+  exportCSV('students-template.csv', ['firstName','lastName','email','phone'], [['Riya','Sharma','riya@example.com','9876500000'],['Arjun','Mehta','arjun@example.com','9876500001']]);
+}
+function _parseCSV(text){
+  var rows = text.split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean)
+    .map(function(l){ return l.split(',').map(function(c){ return c.trim().replace(/^"|"$/g,''); }); });
+  if(rows.length && /first\s*name|e-?mail/i.test(rows[0].join(','))) rows.shift();
+  return rows;
+}
+async function runImportStudents(){
+  var err=document.getElementById('impErr'); err.style.display='none';
+  var prog=document.getElementById('impProgress');
+  var fileEl=document.getElementById('impFile'); var textEl=document.getElementById('impText');
+  var text='';
+  if(fileEl && fileEl.files && fileEl.files[0]) text = await fileEl.files[0].text();
+  else text = (textEl.value||'');
+  if(!text.trim()){ err.textContent='Choose a CSV file or paste at least one row.'; err.style.display='block'; return; }
+  var rows=_parseCSV(text);
+  if(!rows.length){ err.textContent='No data rows found.'; err.style.display='block'; return; }
+  var btn=document.getElementById('impBtn'); btn.disabled=true; btn.textContent='Importing…';
+  var ok=0, fail=0, failMsgs=[];
+  for(var i=0;i<rows.length;i++){
+    var r=rows[i];
+    if(r.length<3 || !r[2]){ fail++; failMsgs.push('row '+(i+1)+': missing email'); continue; }
+    if(prog) prog.textContent='Importing '+(i+1)+' of '+rows.length+'…';
+    if(_demoMode){ ok++; continue; }
+    try{ await apiFetch('/users',{method:'POST',body:JSON.stringify({ firstName:r[0], lastName:r[1]||'', email:r[2], phone:r[3]||'', role:'student', password:'Password123' })}); ok++; }
+    catch(e){ fail++; failMsgs.push((r[2]||'row '+(i+1))+': '+e.message); }
+  }
+  closeModal();
+  toast('Imported '+ok+' student'+(ok!==1?'s':'')+(fail?(' · '+fail+' failed'):''), fail?'info':'success');
+  if(failMsgs.length) console.warn('Import failures:\n'+failMsgs.join('\n'));
+  refreshPage();
+}
+
+// ───────────────────────── ASSESSMENTS / ASSIGNMENTS ─────────────────────────
+function _mySubmission(a){
+  if(!a.submissions || !_currentUser) return null;
+  return a.submissions.find(function(s){ return s.student && (s.student._id===_currentUser._id || s.student===_currentUser._id); });
+}
+function studentAssignmentCard(a){
+  var due = a.dueDate ? fmtDate(a.dueDate) : '—';
+  var overdue = a.dueDate && new Date(a.dueDate).getTime() < Date.now();
+  var my = _mySubmission(a);
+  var graded = my && (my.score!=null || my.status==='reviewed');
+  var statusBadge = graded ? '<span class="badge b-graded">Graded · '+(my.score!=null?my.score:'?')+'/'+(a.maxScore||100)+'</span>'
+    : my ? '<span class="badge b-active">Submitted</span>'
+    : overdue ? '<span class="badge b-due">Overdue</span>' : '<span class="badge b-pending">Pending</span>';
+  var feedback = (graded && my.mentorFeedback) ? '<div class="sched-covers" style="margin-top:.45rem"><b>Mentor feedback:</b> '+my.mentorFeedback+'</div>' : '';
+  var btnLabel = my ? 'Resubmit' : 'Submit Work';
+  return '<div class="course-row" style="flex-direction:column;align-items:stretch;gap:.5rem">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.6rem">'+
+      '<div style="min-width:0"><div class="course-name">&#128221; '+a.title+'</div>'+
+      '<div class="course-desc">'+((a.course&&a.course.title)||'')+' · '+(a.type||'homework')+' · Due '+due+'</div></div>'+
+      statusBadge+
+    '</div>'+
+    (a.description?'<div style="font-size:.8rem;color:var(--muted);line-height:1.5">'+a.description+'</div>':'')+
+    feedback+
+    '<div><button class="continue-btn" style="padding:.5rem 1.1rem" onclick="submitWork(\''+a._id+'\')">'+btnLabel+'</button></div>'+
+  '</div>';
+}
+function mentorAssignmentCard(a){
+  var due = a.dueDate ? fmtDate(a.dueDate) : '—';
+  var subs = (a.submissions||[]).length;
+  var graded = (a.submissions||[]).filter(function(s){ return s.status==='reviewed'; }).length;
+  return '<div class="course-row" style="flex-direction:column;align-items:stretch;gap:.55rem">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.6rem">'+
+      '<div style="min-width:0"><div class="course-name">&#128221; '+a.title+'</div>'+
+      '<div class="course-desc">'+((a.course&&a.course.title)||'')+(a.batch?' · '+(a.batch.name||''):'')+' · Due '+due+'</div></div>'+
+      '<span class="badge '+(subs?'b-graded':'b-pending')+'">'+subs+' submission'+(subs!==1?'s':'')+(graded?' · '+graded+' graded':'')+'</span>'+
+    '</div>'+
+    '<div style="display:flex;gap:.5rem;flex-wrap:wrap">'+
+      '<button class="continue-btn" style="padding:.45rem .9rem;font-size:.74rem" onclick="viewSubmissions(\''+a._id+'\')">&#128203; View Submissions</button>'+
+      '<button class="continue-btn" style="padding:.45rem .9rem;font-size:.74rem;background:transparent;color:var(--ink2);border:1.5px solid var(--line)" onclick="editAssignment(\''+a._id+'\')">Edit</button>'+
+      '<button class="continue-btn" style="padding:.45rem .9rem;font-size:.74rem;background:transparent;color:var(--red);border:1.5px solid var(--line)" onclick="deleteAssignment(\''+a._id+'\')">Delete</button>'+
+    '</div>'+
+  '</div>';
+}
+function submitWork(id){
+  var a=_assignmentsCache[id]||{}; var my=_mySubmission(a)||{};
+  formModal({
+    title:'Submit: '+(a.title||'Assessment'), submitLabel:'Submit Work',
+    fields:[
+      {name:'githubLink',label:'Submission link (Google Drive / GitHub / etc.)',value:my.githubLink||'',placeholder:'https://…',help:'Upload your file to Drive/GitHub and paste the share link here.'},
+      {name:'content',label:'Notes (optional)',type:'textarea',value:my.content||''}
+    ],
+    onSubmit:async function(v){
+      if(!v.githubLink && !v.content) throw new Error('Add a submission link or some notes.');
+      if(_demoMode){ toast('Work submitted (demo)','success'); return refreshPage(); }
+      await apiFetch('/assignments/'+id+'/submit',{method:'POST',body:JSON.stringify({ content:v.content, githubLink:v.githubLink })});
+      toast('Work submitted successfully','success'); refreshPage();
+    }
+  });
+}
+async function _assignmentForm(title, submitLabel, initial, onSubmit){
+  initial = initial || {};
+  var courses = _demoMode ? _DEMO_COURSES.map(function(c){return{value:c._id,label:c.title};}) : await loadOptions('/courses?limit=100',function(c){return c.title;});
+  var batches = _demoMode ? _DEMO_BATCHES.map(function(b){return{value:b._id,label:b.name};}) : await loadOptions('/batches?limit=100',function(b){return b.name;});
+  formModal({
+    title:title, submitLabel:submitLabel,
+    fields:[
+      {name:'title',label:'Title',value:initial.title||'',required:true},
+      {name:'description',label:'Instructions',type:'textarea',value:initial.description||'',required:true},
+      {name:'course',label:'Course',type:'select',required:true,placeholder:'Select course…',value:(initial.course&&(initial.course._id||initial.course))||'',options:courses},
+      {name:'batch',label:'Batch',type:'select',required:true,placeholder:'Select batch…',value:(initial.batch&&(initial.batch._id||initial.batch))||'',options:batches},
+      {name:'dueDate',label:'Due Date',type:'date',value:initial.dueDate?initial.dueDate.slice(0,10):'',required:true},
+      {name:'type',label:'Type',type:'select',value:initial.type||'homework',options:[{value:'homework',label:'Homework'},{value:'project',label:'Project'},{value:'mini-project',label:'Mini Project'},{value:'capstone',label:'Capstone'},{value:'quiz',label:'Quiz'}]},
+      {name:'maxScore',label:'Max Score',type:'number',value:initial.maxScore||100},
+      {name:'difficulty',label:'Difficulty',type:'select',value:initial.difficulty||'medium',options:[{value:'easy',label:'Easy'},{value:'medium',label:'Medium'},{value:'hard',label:'Hard'}]}
+    ],
+    onSubmit:onSubmit
+  });
+}
+function _assignmentPayload(v){
+  return { title:v.title, description:v.description, course:v.course, batch:v.batch, dueDate:v.dueDate,
+    type:v.type, maxScore:v.maxScore?Number(v.maxScore):100, difficulty:v.difficulty, status:'published' };
+}
+function addAssignment(){
+  _assignmentForm('New Assignment','Assign to Students', {}, async function(v){
+    if(_demoMode){ toast('Assignment created (demo)','success'); return refreshPage(); }
+    await apiFetch('/assignments',{method:'POST',body:JSON.stringify(_assignmentPayload(v))});
+    toast('Assignment created — now visible to students','success'); refreshPage();
+  });
+}
+function editAssignment(id){
+  _assignmentForm('Edit Assignment','Save Changes', _assignmentsCache[id]||{}, async function(v){
+    if(_demoMode){ toast('Assignment updated (demo)','success'); return refreshPage(); }
+    await apiFetch('/assignments/'+id,{method:'PATCH',body:JSON.stringify(_assignmentPayload(v))});
+    toast('Assignment updated','success'); refreshPage();
+  });
+}
+function deleteAssignment(id){
+  confirmModal('Delete Assignment','Delete this assessment and all its submissions?','Delete',async function(){
+    if(_demoMode){ toast('Assignment deleted (demo)','success'); return refreshPage(); }
+    await apiFetch('/assignments/'+id,{method:'DELETE'}); toast('Assignment deleted','success'); refreshPage();
+  });
+}
+async function viewSubmissions(id){
+  _buildModal('Submissions', '<div style="padding:2rem">'+loadingHTML()+'</div>', '');
+  var a = _assignmentsCache[id] || {};
+  if(!_demoMode){
+    try{ var res=await apiFetch('/assignments/'+id); a=(res.data&&res.data.assignment)||res.data||a; }catch(e){}
+  }
+  var subs=a.submissions||[];
+  var body;
+  if(!subs.length){
+    body='<div style="padding:1rem;color:var(--muted);font-size:.85rem">No submissions yet. Students appear here once they submit.</div>';
+  } else {
+    body=subs.map(function(s){
+      var st=s.student||{}; var name=((st.firstName||'')+' '+(st.lastName||'')).trim()||'Student';
+      var link = s.githubLink ? '<a href="'+s.githubLink+'" target="_blank" style="color:var(--purple);font-weight:600;word-break:break-all">'+s.githubLink+'</a>' : '';
+      var stB = s.status==='reviewed'?'b-graded':(s.status==='late'?'b-due':'b-active');
+      return '<div style="border:1px solid var(--line);border-radius:11px;padding:.85rem;margin-bottom:.7rem">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center"><b>'+name+'</b><span class="badge '+stB+'">'+s.status+'</span></div>'+
+        '<div style="font-size:.7rem;color:var(--muted);margin-top:.2rem">Submitted '+fmtDate(s.submittedAt)+'</div>'+
+        (s.content?'<div style="font-size:.82rem;color:var(--ink2);margin-top:.4rem">'+s.content+'</div>':'')+
+        (link?'<div style="font-size:.78rem;margin-top:.35rem">&#128279; '+link+'</div>':'')+
+        '<div style="display:flex;gap:.4rem;margin-top:.6rem;align-items:center">'+
+          '<input id="sc_'+s._id+'" type="number" placeholder="Score /'+(a.maxScore||100)+'" value="'+(s.score!=null?s.score:'')+'" style="width:110px;border:1px solid var(--line);border-radius:8px;padding:.45rem .6rem;font-size:.82rem">'+
+          '<input id="fb_'+s._id+'" placeholder="Feedback" value="'+((s.mentorFeedback||'').replace(/"/g,'&quot;'))+'" style="flex:1;border:1px solid var(--line);border-radius:8px;padding:.45rem .6rem;font-size:.82rem">'+
+          '<button class="btn-primary" style="padding:.45rem .9rem" onclick="gradeSubmission(\''+id+'\',\''+s._id+'\')">Save</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  }
+  _buildModal('Submissions — '+(a.title||'Assessment'), body, '<button class="btn-primary" onclick="closeModal()">Close</button>');
+  var box=document.querySelector('#modalOverlay .modal-box'); if(box) box.style.maxWidth='640px';
+}
+async function gradeSubmission(aid, sid){
+  var scEl=document.getElementById('sc_'+sid), fbEl=document.getElementById('fb_'+sid);
+  var score=scEl?scEl.value:''; var fb=fbEl?fbEl.value:'';
+  if(score===''){ toast('Enter a score first','info'); return; }
+  if(_demoMode){ toast('Grade saved (demo)','success'); return; }
+  try{
+    await apiFetch('/assignments/'+aid+'/submissions/'+sid+'/review',{method:'POST',body:JSON.stringify({ score:Number(score), feedback:fb })});
+    toast('Grade saved & sent to student','success');
+    var btn = scEl && scEl.parentNode ? scEl.parentNode.querySelector('button') : null; if(btn){ btn.textContent='Saved'; }
+  }catch(e){ toast(e.message,'error'); }
 }
 
 function markAnnRead(id) {
@@ -3140,7 +3406,7 @@ async function viewEntity(kind, id){
     } else if(kind==='course'){
       rows=[['Title',d.title],['Category',d.category],['Modules',d.totalModules!=null?d.totalModules:(d.modules||[]).length],['Published',d.isPublished?'Yes':'No'],['Duration',d.duration||'—']];
     } else if(kind==='drive'){
-      rows=[['Company',d.company],['Role',d.role],['Status',d.status],['Package',d.package?('₹'+(d.package.min||0)/100000+'L – ₹'+(d.package.max||0)/100000+'L'):'—'],['Deadline',fmtDate(d.applicationDeadline)]];
+      rows=[['Company',d.company],['Role',d.role],['Status',d.status],['Package',d.package?((d.package.min!=null?d.package.min:'')+(d.package.max!=null?'–'+d.package.max:'')+' LPA'):'—'],['Vacancies',d.vacancies||'—'],['Deadline',fmtDate(d.applicationDeadline)]];
     }
     detailModal(d.name||d.title||d.company||fullName(d)||'Details', rows);
   }catch(e){ _buildModal('Details', errorHTML(e.message), '<button class="btn-primary" onclick="closeModal()">Close</button>'); }
