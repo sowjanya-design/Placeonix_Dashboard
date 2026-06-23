@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Placeonix ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Dashboard</title>
+<title>Placeonix Hub — Dashboard</title>
 <link rel="manifest" href="manifest.json"/>
 <meta name="theme-color" content="#5b5fc7"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -646,6 +646,14 @@ body{overflow:hidden;background:var(--bg)}
   .topbar{padding:.8rem 1rem}
   .welcome-banner{flex-direction:column;align-items:flex-start;gap:.8rem}
   .wb-illus{display:none}
+  .quick-links{grid-template-columns:1fr 1fr}
+  .topbar-user > div:last-child{display:none}
+  .topbar-right{gap:.6rem}
+  .drive-table,.assign-table{display:block;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
+  .section-head{flex-wrap:wrap;gap:.5rem}
+  .wb-title{font-size:1.2rem}
+  .modal-box{max-width:94vw}
+  .profile-grid,.cd-layout{grid-template-columns:1fr}
 }
 
 /* MODAL */
@@ -709,7 +717,7 @@ body{overflow:hidden;background:var(--bg)}
         <img src="placeonix-logo.png" alt="Placeonix"/>
         <div class="login-brand-sub">Training | Placement | Future</div>
       </div>
-      <div class="login-headline">Learn Today.<br/>Get Placed <span>Tomorrow.</span></div>
+      <div class="login-headline">Learn Today.<br/>Lead <span>Tomorrow.</span></div>
       <div class="login-tagline">Skill up. Stand out. We help you build the skills and confidence to launch your dream career.</div>
       <div class="login-illustration-wrap">
         <img src="login-illustration.svg" alt="Learning illustration"/>
@@ -847,6 +855,11 @@ var _DEMO_ANNOUNCEMENTS = [
   { _id:'an2', title:'New Placement Drive — Wipro', body:'Wipro is hiring Full Stack & SAP consultants. Eligible students can apply from the Placements tab.', type:'general', isPinned:false, publishAt: new Date().toISOString() },
   { _id:'an3', title:'New Course Added',        body:'Advanced Excel has been added to the catalog. Students can enroll now.', type:'general', isPinned:false, publishAt: new Date().toISOString() }
 ];
+var _DEMO_NOTIFS = [
+  { _id:'n1', title:'New Placement Drive: Wipro', message:'Full Stack & SAP consultant roles — apply from Placements.', read:false, createdAt:new Date(Date.now()-36e5).toISOString() },
+  { _id:'n2', title:'Assignment graded', message:'Your React Portfolio Project was graded 85/100.', read:false, createdAt:new Date(Date.now()-9e6).toISOString() },
+  { _id:'n3', title:'Class reminder', message:'Live Coding: REST APIs starts at 6:00 PM today.', read:false, createdAt:new Date(Date.now()-18e6).toISOString() }
+];
 var _DEMO_ASSIGNMENTS = [
   { _id:'asn1', title:'React Portfolio Project', course:{_id:'c1',title:'Full Stack'}, batch:{_id:'b1',name:'Batch A'}, dueDate: new Date(Date.now()+2*864e5).toISOString(), submissions:[] },
   { _id:'asn2', title:'Node REST API',           course:{_id:'c1',title:'Full Stack'}, batch:{_id:'b1',name:'Batch A'}, dueDate: new Date(Date.now()+4*864e5).toISOString(), submissions:[] },
@@ -967,7 +980,9 @@ function _demoResponse(path) {
   if (p==='/attendance/mark') return { success:true, data:{marked:5} };
   if (p==='/placements') return { success:true, data:_DEMO_DRIVES, meta:{total:4,page:1,limit:20,pages:1} };
   if (p==='/placements/my/applications') return { success:true, data:{applications:[]} };
-  if (p==='/notifications/unread-count') return { success:true, data:{count:3} };
+  if (p==='/notifications/unread-count') return { success:true, data:{count:_DEMO_NOTIFS.filter(function(n){return !n.read;}).length} };
+  if (p==='/notifications') return { success:true, data:_DEMO_NOTIFS };
+  if (p==='/notifications/read-all') { _DEMO_NOTIFS.forEach(function(n){n.read=true;}); return { success:true }; }
   if (p==='/sessions/today') return { success:true, data:_DEMO_SESSIONS.filter(function(s){return s.status!=='completed';}) };
   if (p==='/sessions') return { success:true, data:_DEMO_SESSIONS, meta:{total:_DEMO_SESSIONS.length,page:1,limit:30,pages:1} };
   if (p==='/users/my-students') return { success:true, data:{students:[],count:0} };
@@ -1265,10 +1280,19 @@ async function doLogin() {
 }
 
 async function doLogout() {
-  try { await apiFetch('/auth/logout', { method: 'POST' }); } catch (e) {}
+  try { if(!_demoMode) await apiFetch('/auth/logout', { method: 'POST' }); } catch (e) {}
   _token = null;
   _currentUser = null;
+  _demoMode = false;
   localStorage.removeItem('plx_token');
+  closeModal();
+  var db = document.getElementById('demoBanner'); if (db) db.remove();
+  // Reset the login form so credentials & button don't persist
+  var em = document.getElementById('loginEmail'); if (em) em.value = '';
+  var pw = document.getElementById('loginPass'); if (pw) { pw.value = ''; pw.type = 'password'; }
+  var lb = document.getElementById('loginBtn');
+  if (lb) { lb.disabled = false; lb.innerHTML = 'Login <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>'; }
+  var le = document.getElementById('loginErr'); if (le) le.style.display = 'none';
   var app = document.getElementById('app');
   app.style.display = 'none';
   var ls = document.getElementById('loginScreen');
@@ -1923,7 +1947,7 @@ async function renderStudents(role) {
         '<td>'+(u.phone||'-')+'</td>'+
         '<td>'+fmtDate(u.createdAt)+'</td>'+
         '<td><span class="badge '+(u.status==="active"?"b-active":"b-pending")+'">'+(u.status||"active")+'</span></td>'+
-        '<td><button class="apply-btn" style="font-size:.7rem;padding:.35rem .7rem" onclick="viewEntity(\'user\',\''+u._id+'\')">View</button></td>'+
+        '<td><div style="display:flex;gap:.35rem"><button class="apply-btn" style="font-size:.7rem;padding:.35rem .7rem;background:transparent;color:var(--ink2);border:1.5px solid var(--line)" onclick="editUser(\''+u._id+'\')">Edit</button><button class="apply-btn" style="font-size:.7rem;padding:.35rem .7rem" onclick="viewEntity(\'user\',\''+u._id+'\')">View</button></div></td>'+
       '</tr>';
     }).join('');
   } else {
@@ -2490,7 +2514,7 @@ function submitWork(id){
     ],
     onSubmit:async function(v){
       if(!v.githubLink && !v.content) throw new Error('Add a submission link or some notes.');
-      if(_demoMode){ toast('Work submitted (demo)','success'); return refreshPage(); }
+      if(_demoMode){ if(a.submissions){a.submissions=a.submissions.filter(function(s){return String(s.student&&(s.student._id||s.student))!==String(_currentUser._id);}); a.submissions.push({student:_currentUser._id, content:v.content, githubLink:v.githubLink, status:'submitted', submittedAt:new Date().toISOString()});} toast('Work submitted (demo)','success'); return refreshPage(); }
       await apiFetch('/assignments/'+id+'/submit',{method:'POST',body:JSON.stringify({ content:v.content, githubLink:v.githubLink })});
       toast('Work submitted successfully','success'); refreshPage();
     }
@@ -3511,6 +3535,26 @@ function copyCreds(){
   var txt = 'Placeonix login\nEmail: '+_lastCreds.email+'\nPassword: '+_lastCreds.password;
   if(navigator.clipboard){ navigator.clipboard.writeText(txt).then(function(){ toast('Login details copied','success'); }, function(){ toast('Could not copy','error'); }); }
   else { toast('Email: '+_lastCreds.email+' / Password: '+_lastCreds.password,'info'); }
+}
+async function editUser(id){
+  var u = (_studentsCache||[]).filter(function(x){return x._id===id;})[0];
+  if(!u && !_demoMode){ try{ var r=await apiFetch('/users/'+id); u=(r.data&&r.data.user)||r.data; }catch(e){} }
+  u = u || {};
+  formModal({
+    title:'Edit '+(((u.firstName||'')+' '+(u.lastName||'')).trim()||'User'),
+    submitLabel:'Save Changes',
+    fields:[
+      {name:'firstName',label:'First Name',value:u.firstName||'',required:true},
+      {name:'lastName',label:'Last Name',value:u.lastName||'',required:true},
+      {name:'phone',label:'Phone',value:u.phone||''},
+      {name:'status',label:'Status',type:'select',value:u.status||'active',options:[{value:'active',label:'Active'},{value:'inactive',label:'Inactive'},{value:'suspended',label:'Suspended'},{value:'pending',label:'Pending'}]}
+    ],
+    onSubmit:async function(v){
+      if(_demoMode){ toast('Saved (demo)','success'); return refreshPage(); }
+      await apiFetch('/users/'+id,{method:'PATCH',body:JSON.stringify(v)});
+      toast('Student updated','success'); refreshPage();
+    }
+  });
 }
 async function viewEntity(kind, id){
   var path = kind==='user'?'/users/'+id : kind==='batch'?'/batches/'+id : kind==='course'?'/courses/'+id : kind==='drive'?'/placements/'+id : null;
