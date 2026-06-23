@@ -1705,7 +1705,7 @@ function courseCardPremium(c, role) {
   var s = getCourseStyle(c.category);
   var tags = (c.tags && c.tags.length) ? c.tags.slice(0,3) : [];
   var btn = role === 'admin'
-    ? '<button class="continue-btn" onclick="viewEntity(\'course\',\''+c._id+'\')">Manage</button>'
+    ? '<button class="continue-btn" onclick="manageBatchFor(\'course\',\''+c._id+'\')">Manage Students</button>'
     : '<button class="continue-btn" onclick="startLearning(\''+(c.title||'').replace(/[\x27"]/g,'')+'\')">View Course</button>';
   return '<div class="course-card2" data-cat="'+(c.category||'Other')+'">'+
     '<div class="cc2-head">'+
@@ -2698,6 +2698,70 @@ function convertLead(id){
   });
 }
 
+// ───────────────────────── BATCH ENROLLMENT (admin) ─────────────────────────
+async function manageBatch(id){
+  _buildModal('Manage Batch', '<div style="padding:2rem">'+loadingHTML()+'</div>', '');
+  var batch={}, enrollments=[];
+  if(_demoMode){
+    batch={name:'FSWD Batch A',course:{title:'Full Stack Web Development'},mentor:{firstName:'Priya',lastName:'Sharma'},capacity:30};
+    enrollments=[{student:{_id:'st1',firstName:'Arjun',lastName:'Reddy',email:'arjun@placeonix.in'}}];
+  } else {
+    try{ var res=await apiFetch('/batches/'+id); var d=res.data||{}; batch=d.batch||d; enrollments=d.enrollments||[]; }
+    catch(e){ _buildModal('Manage Batch', errorHTML(e.message), '<button class="btn-primary" onclick="closeModal()">Close</button>'); return; }
+  }
+  var courseName = batch.course ? (batch.course.title||'') : '';
+  var mentorName = batch.mentor ? (((batch.mentor.firstName||'')+' '+(batch.mentor.lastName||'')).trim()||'Unassigned') : 'Unassigned';
+  var rows = enrollments.length ? enrollments.map(function(e){
+    var s=e.student||{}; var name=((s.firstName||'')+' '+(s.lastName||'')).trim()||'Student';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.55rem 0;border-bottom:1px solid var(--line)">'+
+      '<div><div style="font-weight:600;font-size:.86rem">'+name+'</div><div style="font-size:.72rem;color:var(--muted)">'+(s.email||'')+'</div></div>'+
+      '<button class="continue-btn" style="padding:.35rem .8rem;font-size:.7rem;background:transparent;color:var(--red);border:1.5px solid var(--line)" onclick="unenrollStudent(\''+id+'\',\''+s._id+'\')">Remove</button>'+
+    '</div>';
+  }).join('') : '<div style="color:var(--muted);font-size:.85rem;padding:.6rem 0">No students enrolled yet. Use "Enroll Student" below.</div>';
+  var body = '<div style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:.7rem .9rem;font-size:.8rem;color:var(--ink2);margin-bottom:1rem">'+
+      '&#128218; <b>'+courseName+'</b> &nbsp;&bull;&nbsp; &#128104;&#8205;&#127979; Mentor: <b>'+mentorName+'</b> &nbsp;&bull;&nbsp; '+enrollments.length+'/'+(batch.capacity||'∞')+' seats</div>'+
+    '<div style="font-size:.82rem;font-weight:800;color:var(--ink);margin-bottom:.4rem">Enrolled Students ('+enrollments.length+')</div>'+rows;
+  var foot = '<button class="btn-secondary" onclick="closeModal()">Close</button><button class="btn-primary" onclick="enrollStudentModal(\''+id+'\')">+ Enroll Student</button>';
+  _buildModal('Manage: '+(batch.name||'Batch'), body, foot);
+  var box=document.querySelector('#modalOverlay .modal-box'); if(box) box.style.maxWidth='560px';
+}
+async function enrollStudentModal(batchId){
+  var students = _demoMode ? [{value:'st1',label:'Arjun Reddy'},{value:'st2',label:'Sneha Patel'}] : await loadOptions('/users?role=student&limit=300',fullName);
+  formModal({
+    title:'Enroll Student into Batch', submitLabel:'Enroll',
+    fields:[{name:'studentId',label:'Student',type:'select',required:true,placeholder:'Select student…',options:students,help:'They get added to this course and assigned to this batch\'s mentor.'}],
+    onSubmit:async function(v){
+      if(_demoMode){ toast('Student enrolled (demo)','success'); setTimeout(function(){ manageBatch(batchId); },70); return; }
+      await apiFetch('/batches/'+batchId+'/enroll',{method:'POST',body:JSON.stringify({studentId:v.studentId})});
+      toast('Student enrolled — added to course & mentor','success'); setTimeout(function(){ manageBatch(batchId); },70);
+    }
+  });
+}
+function unenrollStudent(batchId, studentId){
+  confirmModal('Remove Student','Remove this student from the batch (and its course)?','Remove',async function(){
+    if(_demoMode){ toast('Student removed (demo)','success'); setTimeout(function(){ manageBatch(batchId); },70); return; }
+    await apiFetch('/batches/'+batchId+'/enroll/'+studentId,{method:'DELETE'});
+    toast('Student removed','success'); setTimeout(function(){ manageBatch(batchId); },70);
+  });
+}
+// Open batch management filtered by a mentor or course (assign-to-mentor / add-to-course)
+async function manageBatchFor(kind, id, label){
+  if(_demoMode){ manageBatch('demo'); return; }
+  var res = await apiFetch('/batches?limit=200');
+  var all = res.data || [];
+  var batches = all.filter(function(b){
+    var v = kind==='mentor' ? (b.mentor&&(b.mentor._id||b.mentor)) : (b.course&&(b.course._id||b.course));
+    return String(v)===String(id);
+  });
+  if(!batches.length){ toast('No batches found for this '+kind+'. Create a batch first, then enroll students.','info'); return; }
+  if(batches.length===1){ manageBatch(batches[0]._id); return; }
+  formModal({
+    title:'Select a Batch'+(label?' — '+label:''), submitLabel:'Manage',
+    fields:[{name:'batchId',label:'Batch',type:'select',required:true,options:batches.map(function(b){return{value:b._id,label:b.name||b.code};})}],
+    onSubmit:async function(v){ setTimeout(function(){ manageBatch(v.batchId); },60); }
+  });
+}
+
 function markAnnRead(id) {
   apiFetch('/announcements/' + id + '/read', { method: 'POST' }).catch(function(){});
 }
@@ -2962,7 +3026,7 @@ async function renderMentors(){
       '<div class="course-desc">'+spec+'</div></div>'+
       '<div style="text-align:center;margin-right:.6rem"><div style="font-weight:800">'+students+'</div><div style="font-size:.7rem;color:var(--muted)">students</div></div>'+
       '<span class="badge" style="background:var(--green-lt);color:var(--green)">'+(m.status||'active')+'</span>'+
-      '<button class="continue-btn" style="background:transparent;color:var(--purple);border:1.5px solid var(--purple)" onclick="viewEntity(\'user\',\''+m._id+'\')">View</button>'+
+      '<button class="continue-btn" style="padding:.45rem .9rem;font-size:.74rem" onclick="manageBatchFor(\'mentor\',\''+m._id+'\')">Assign Students</button><button class="continue-btn" style="background:transparent;color:var(--purple);border:1.5px solid var(--purple)" onclick="viewEntity(\'user\',\''+m._id+'\')">View</button>'+
     '</div>';
   }).join('') : '<div style="padding:1.5rem;color:var(--muted)">No mentors yet.</div>';
   return '<div class="section-head"><span class="section-title">Mentors ('+total+')</span><button class="continue-btn" onclick="addUser(\'mentor\')">+ Add Mentor</button></div>'+
@@ -2993,7 +3057,7 @@ async function renderBatches(role){
         '<span>&#128104;&#8205;&#127979; '+mentorName+'</span><span>'+count+'/'+(cap||'&#8734;')+' seats</span>'+
       '</div>'+
       '<div class="prog-bar"><div class="prog-fill" style="width:'+pct+'%"></div></div>'+
-      (canManage?'<div style="display:flex;gap:.5rem"><button class="continue-btn" style="flex:1;background:transparent;color:var(--purple);border:1.5px solid var(--purple)" onclick="viewEntity(\'batch\',\''+b._id+'\')">Manage</button><button class="continue-btn" style="flex:1" onclick="viewEntity(\'batch\',\''+b._id+'\')">Students</button></div>':'')+
+      (canManage?'<div style="display:flex;gap:.5rem"><button class="continue-btn" style="flex:1;background:transparent;color:var(--purple);border:1.5px solid var(--purple)" onclick="manageBatch(\''+b._id+'\')">Manage</button><button class="continue-btn" style="flex:1" onclick="manageBatch(\''+b._id+'\')">Students</button></div>':'')+
     '</div>';
   }).join('') : '<div style="padding:1.5rem;color:var(--muted)">No batches yet.</div>';
   return '<div class="section-head"><span class="section-title">Batches</span>'+addBtn+'</div>'+
