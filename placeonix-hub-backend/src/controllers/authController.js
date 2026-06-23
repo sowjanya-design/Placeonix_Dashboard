@@ -153,12 +153,25 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
   user.passwordResetExpiry = Date.now() + 30 * 60 * 1000; // 30 min
   await user.save({ validateBeforeSave: false });
 
-  // TODO: Send email with reset URL
-  // const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
-  // await sendEmail({ to: user.email, subject: 'Reset your password', resetUrl });
+  // If SMTP is configured, email the reset link; otherwise return the token
+  // in-band so the user can complete the reset in-app (until email is set up).
+  const resetUrl = `${process.env.CLIENT_URL || ''}/reset-password/${resetToken}`;
+  let emailed = false;
+  if (process.env.SMTP_HOST && process.env.SMTP_PASS && process.env.SMTP_PASS !== 'your-app-password') {
+    try {
+      const { sendEmail } = require('../services/emailService');
+      await sendEmail({
+        to: user.email,
+        subject: 'Reset your Placeonix password',
+        html: `<p>Hi ${user.firstName || ''},</p><p>Reset your password using the link below (valid 30 minutes):</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
+      });
+      emailed = true;
+    } catch (e) { emailed = false; }
+  }
 
   return ApiResponse.success(res, 200, 'If that email exists, reset instructions have been sent', {
-    resetToken: process.env.NODE_ENV !== 'production' ? resetToken : undefined,
+    emailed,
+    resetToken: emailed ? undefined : resetToken,
   });
 });
 

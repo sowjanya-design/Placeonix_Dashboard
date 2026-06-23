@@ -1207,11 +1207,33 @@ function togglePass() {
 function forgotPassword(e){
   if(e && e.preventDefault) e.preventDefault();
   formModal({
-    title:'Reset Your Password', submitLabel:'Send Reset Link',
+    title:'Reset Your Password', submitLabel:'Continue',
     fields:[{name:'email',label:'Account email',type:'email',required:true,placeholder:'you@example.com'}],
     onSubmit:async function(v){
-      try{ await apiFetch('/auth/forgot-password',{method:'POST',body:JSON.stringify({email:v.email})}); }catch(err){}
-      toast('If an account exists for that email, a reset link has been sent.','success');
+      if(_demoMode){ toast('Reset link sent (demo)','success'); return; }
+      var res = await apiFetch('/auth/forgot-password',{method:'POST',body:JSON.stringify({email:v.email})});
+      var token = res.data && res.data.resetToken;
+      var emailed = res.data && res.data.emailed;
+      if(emailed){ toast('A reset link has been emailed to you.','success'); return; }
+      if(token){ var em=v.email; setTimeout(function(){ setNewPassword(em, token); }, 70); }
+      else { toast('If that email exists, you can reset it here. Check the email and try again.','info'); }
+    }
+  });
+}
+function setNewPassword(email, token){
+  formModal({
+    title:'Set a New Password', submitLabel:'Update Password',
+    fields:[
+      {name:'password',label:'New Password',type:'password',required:true,help:'Minimum 8 characters.'},
+      {name:'confirm',label:'Confirm New Password',type:'password',required:true}
+    ],
+    onSubmit:async function(v){
+      if(v.password.length<8) throw new Error('Password must be at least 8 characters.');
+      if(v.password!==v.confirm) throw new Error('Passwords do not match.');
+      await apiFetch('/auth/reset-password/'+token,{method:'POST',body:JSON.stringify({password:v.password})});
+      toast('Password updated! Log in with your new password.','success');
+      var em=document.getElementById('loginEmail'); if(em) em.value=email;
+      var pw=document.getElementById('loginPass'); if(pw) pw.value='';
     }
   });
 }
