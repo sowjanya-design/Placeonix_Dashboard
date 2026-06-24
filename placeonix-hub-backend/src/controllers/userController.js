@@ -69,13 +69,21 @@ exports.updateUser = asyncHandler(async (req, res, next) => {
 // @desc   Delete user (soft delete — sets status=inactive)
 // @route  DELETE /api/v1/users/:id
 exports.deleteUser = asyncHandler(async (req, res, next) => {
-  const user = await User.findByIdAndUpdate(
-    req.params.id,
-    { status: 'inactive' },
-    { new: true }
-  );
+  if (String(req.params.id) === String(req.user._id)) {
+    return next(new AppError('You cannot delete your own account', 400));
+  }
+  const user = await User.findById(req.params.id);
   if (!user) return next(new AppError('User not found', 404));
-  return ApiResponse.success(res, 200, 'User deactivated');
+
+  // Cascade: a removed student's enrollments are deleted so no orphans remain.
+  if (user.role === 'student') {
+    await Enrollment.deleteMany({ student: user._id });
+  }
+  // Note: batches owned by a removed mentor keep the (now-dangling) ref and
+  // simply show "Unassigned"; reassign them to another mentor as needed.
+
+  await user.deleteOne();
+  return ApiResponse.success(res, 200, 'User removed');
 });
 
 // @desc   Change user role (admin only)

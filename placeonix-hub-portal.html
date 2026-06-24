@@ -1969,7 +1969,7 @@ async function renderStudents(role) {
         '<td>'+(u.phone||'-')+'</td>'+
         '<td>'+fmtDate(u.createdAt)+'</td>'+
         '<td><span class="badge '+(u.status==="active"?"b-active":"b-pending")+'">'+(u.status||"active")+'</span></td>'+
-        '<td><div style="display:flex;gap:.35rem"><button class="apply-btn" style="font-size:.7rem;padding:.35rem .7rem;background:transparent;color:var(--ink2);border:1.5px solid var(--line)" onclick="editUser(\''+u._id+'\')">Edit</button><button class="apply-btn" style="font-size:.7rem;padding:.35rem .7rem" onclick="viewEntity(\'user\',\''+u._id+'\')">View</button></div></td>'+
+        '<td><div style="display:flex;gap:.35rem"><button class="apply-btn" style="font-size:.7rem;padding:.35rem .7rem;background:transparent;color:var(--ink2);border:1.5px solid var(--line)" onclick="editUser(\''+u._id+'\')">Edit</button><button class="apply-btn" style="font-size:.7rem;padding:.35rem .7rem" onclick="viewEntity(\'user\',\''+u._id+'\')">View</button><button class="apply-btn" style="font-size:.7rem;padding:.35rem .7rem;background:transparent;color:var(--red);border:1.5px solid var(--line)" onclick="deleteUserAccount(\''+u._id+'\',\''+(name||'').replace(/'/g,'')+'\')">Delete</button></div></td>'+
       '</tr>';
     }).join('');
   } else {
@@ -3026,7 +3026,7 @@ async function renderMentors(){
       '<div class="course-desc">'+spec+'</div></div>'+
       '<div style="text-align:center;margin-right:.6rem"><div style="font-weight:800">'+students+'</div><div style="font-size:.7rem;color:var(--muted)">students</div></div>'+
       '<span class="badge" style="background:var(--green-lt);color:var(--green)">'+(m.status||'active')+'</span>'+
-      '<button class="continue-btn" style="padding:.45rem .9rem;font-size:.74rem" onclick="manageBatchFor(\'mentor\',\''+m._id+'\')">Assign Students</button><button class="continue-btn" style="background:transparent;color:var(--purple);border:1.5px solid var(--purple)" onclick="viewEntity(\'user\',\''+m._id+'\')">View</button>'+
+      '<button class="continue-btn" style="padding:.45rem .9rem;font-size:.74rem" onclick="manageBatchFor(\'mentor\',\''+m._id+'\')">Assign Students</button><button class="continue-btn" style="background:transparent;color:var(--purple);border:1.5px solid var(--purple)" onclick="viewEntity(\'user\',\''+m._id+'\')">View</button><button class="continue-btn" style="background:transparent;color:var(--red);border:1.5px solid var(--red)" onclick="deleteUserAccount(\''+m._id+'\',\''+(name||'').replace(/'/g,'')+'\')">Delete</button>'+
     '</div>';
   }).join('') : '<div style="padding:1.5rem;color:var(--muted)">No mentors yet.</div>';
   return '<div class="section-head"><span class="section-title">Mentors ('+total+')</span><button class="continue-btn" onclick="addUser(\'mentor\')">+ Add Mentor</button></div>'+
@@ -3621,6 +3621,13 @@ function copyCreds(){
   var txt = 'Placeonix login\nEmail: '+_lastCreds.email+'\nPassword: '+_lastCreds.password;
   if(navigator.clipboard){ navigator.clipboard.writeText(txt).then(function(){ toast('Login details copied','success'); }, function(){ toast('Could not copy','error'); }); }
   else { toast('Email: '+_lastCreds.email+' / Password: '+_lastCreds.password,'info'); }
+}
+function deleteUserAccount(id, name){
+  confirmModal('Delete '+(name||'user')+'?', 'This permanently removes the account - they can no longer log in. This cannot be undone.', 'Delete', async function(){
+    if(_demoMode){ toast('Account removed (demo)','success'); return refreshPage(); }
+    await apiFetch('/users/'+id,{method:'DELETE'});
+    toast((name||'Account')+' removed','success'); refreshPage();
+  });
 }
 async function editUser(id){
   var u = (_studentsCache||[]).filter(function(x){return x._id===id;})[0];
