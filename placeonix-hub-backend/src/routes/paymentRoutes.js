@@ -6,6 +6,7 @@ const { protect, authorize } = require('../middleware/auth');
 router.use(protect);
 
 router.get('/me/summary', authorize('student'), ctrl.mySummary);
+router.post('/me/pay', authorize('student'), ctrl.payMyFees);
 router.get('/', ctrl.listPayments);
 router.get('/:id', ctrl.getPayment);
 

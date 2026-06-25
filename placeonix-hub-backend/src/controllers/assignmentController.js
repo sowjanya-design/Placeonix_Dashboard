@@ -1,6 +1,7 @@
 const Assignment = require('../models/Assignment');
 const Batch = require('../models/Batch');
 const Enrollment = require('../models/Enrollment');
+const Notification = require('../models/Notification');
 const AppError = require('../utils/AppError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
@@ -148,5 +149,20 @@ exports.reviewSubmission = asyncHandler(async (req, res, next) => {
   submission.status = 'reviewed';
 
   await assignment.save();
+
+  // Notify the student that their work was graded.
+  try {
+    await Notification.notify({
+      recipient: submission.student,
+      type: 'assignment_reviewed',
+      title: 'Assignment graded',
+      message: `Your "${assignment.title}" was graded${score != null ? ` ${score}/${assignment.maxScore || 100}` : ''}.`,
+      sender: req.user._id,
+      relatedTo: { model: 'Assignment', id: assignment._id },
+    });
+  } catch (e) {
+    /* best-effort */
+  }
+
   return ApiResponse.success(res, 200, 'Submission reviewed', { submission });
 });

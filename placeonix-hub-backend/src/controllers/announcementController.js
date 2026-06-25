@@ -1,5 +1,7 @@
 const Announcement = require('../models/Announcement');
 const Enrollment = require('../models/Enrollment');
+const User = require('../models/User');
+const Notification = require('../models/Notification');
 const AppError = require('../utils/AppError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
@@ -51,6 +53,32 @@ exports.listAnnouncements = asyncHandler(async (req, res) => {
 // @route  POST /api/v1/announcements
 exports.createAnnouncement = asyncHandler(async (req, res) => {
   const announcement = await Announcement.create({ ...req.body, createdBy: req.user._id });
+
+  // Fan out the announcement as a notification to its target audience so it
+  // shows up in everyone's notification bell (not just the announcements list).
+  try {
+    const aud = announcement.audience || {};
+    const roles = aud.roles && aud.roles.length ? aud.roles : ['student', 'mentor'];
+    const recipients = await User.find({
+      role: { $in: roles },
+      status: 'active',
+      _id: { $ne: req.user._id },
+    }).select('_id');
+    if (recipients.length) {
+      await Notification.notify({
+        recipient: recipients.map((u) => u._id),
+        type: 'announcement',
+        title: announcement.title,
+        message: (announcement.body || '').slice(0, 480),
+        sender: req.user._id,
+        priority: announcement.priority || 'normal',
+        relatedTo: { model: 'Announcement', id: announcement._id },
+      });
+    }
+  } catch (e) {
+    /* notification fan-out is best-effort; never fail the announcement */
+  }
+
   return ApiResponse.created(res, 'Announcement posted', { announcement });
 });
 

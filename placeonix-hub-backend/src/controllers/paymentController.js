@@ -4,6 +4,46 @@ const AppError = require('../utils/AppError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 
+// @desc   Student pays their own fees (simulated gateway — no Razorpay yet)
+// @route  POST /api/v1/payments/me/pay
+exports.payMyFees = asyncHandler(async (req, res, next) => {
+  const { enrollmentId, method } = req.body;
+  let amount = Number(req.body.amount);
+  if (!amount || amount <= 0) return next(new AppError('Enter a valid amount', 400));
+
+  let enrollment;
+  if (enrollmentId) {
+    enrollment = await Enrollment.findOne({ _id: enrollmentId, student: req.user._id });
+  } else {
+    const enrollments = await Enrollment.find({ student: req.user._id });
+    enrollment = enrollments.sort((a, b) => (b.fee.due || 0) - (a.fee.due || 0))[0];
+  }
+  if (!enrollment) return next(new AppError('No enrollment found to pay for', 404));
+
+  if (enrollment.fee.due != null && amount > enrollment.fee.due) amount = enrollment.fee.due;
+  if (amount <= 0) return next(new AppError('No pending dues on this course', 400));
+
+  const txn = 'SIM-' + Date.now();
+  const payment = await Payment.create({
+    enrollment: enrollment._id,
+    student: req.user._id,
+    amount,
+    method: method || 'UPI',
+    transactionId: txn,
+    notes: 'Paid online by student',
+    status: 'completed',
+    paidOn: new Date(),
+    receivedBy: req.user._id,
+  });
+
+  enrollment.fee.paid += amount;
+  enrollment.fee.due = Math.max(0, enrollment.fee.total - enrollment.fee.paid);
+  enrollment.fee.payments.push({ amount, method: method || 'UPI', transactionId: txn, paidOn: new Date(), notes: 'Paid online by student' });
+  await enrollment.save();
+
+  return ApiResponse.created(res, 'Payment successful', { payment, enrollment });
+});
+
 // @desc   List payments (admin)
 // @route  GET /api/v1/payments
 exports.listPayments = asyncHandler(async (req, res) => {

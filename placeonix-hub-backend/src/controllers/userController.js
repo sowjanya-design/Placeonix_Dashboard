@@ -183,7 +183,27 @@ exports.updateMyProgress = asyncHandler(async (req, res, next) => {
 // @route  GET /api/v1/users/leaderboard
 exports.leaderboard = asyncHandler(async (req, res) => {
   const Attendance = require('../models/Attendance');
-  const students = await User.find({ role: 'student', status: 'active' }).select('firstName lastName studentProfile.enrollmentId');
+  const { batch, course } = req.query;
+
+  // Scope: explicit batch/course filter, else (for students) their batch peers.
+  let scopeIds = null;
+  if (batch) {
+    const ens = await Enrollment.find({ batch }).select('student');
+    scopeIds = ens.map((e) => e.student);
+  } else if (course) {
+    const ens = await Enrollment.find({ course }).select('student');
+    scopeIds = ens.map((e) => e.student);
+  } else if (req.user.role === 'student') {
+    const myEns = await Enrollment.find({ student: req.user._id }).select('batch');
+    const myBatches = myEns.map((e) => e.batch).filter(Boolean);
+    const peerEns = await Enrollment.find({ batch: { $in: myBatches } }).select('student');
+    scopeIds = [...new Set(peerEns.map((e) => String(e.student)))];
+    if (!scopeIds.length) scopeIds = [String(req.user._id)];
+  }
+
+  const userFilter = { role: 'student', status: 'active' };
+  if (scopeIds) userFilter._id = { $in: scopeIds };
+  const students = await User.find(userFilter).select('firstName lastName studentProfile.enrollmentId');
 
   const rows = await Promise.all(
     students.map(async (s) => {
