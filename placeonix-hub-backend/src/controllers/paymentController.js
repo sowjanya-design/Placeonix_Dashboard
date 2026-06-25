@@ -7,9 +7,15 @@ const asyncHandler = require('../utils/asyncHandler');
 // @desc   Student pays their own fees (simulated gateway — no Razorpay yet)
 // @route  POST /api/v1/payments/me/pay
 exports.payMyFees = asyncHandler(async (req, res, next) => {
-  const { enrollmentId, method } = req.body;
+  const { enrollmentId } = req.body;
   let amount = Number(req.body.amount);
   if (!amount || amount <= 0) return next(new AppError('Enter a valid amount', 400));
+
+  // Normalize the UI's method label to the Payment enum (cash/upi/card/bank_transfer/...).
+  let method = String(req.body.method || 'upi').toLowerCase().replace(/\s|\//g, '');
+  if (method === 'netbanking' || method === 'banktransfer') method = 'bank_transfer';
+  if (method === 'creditdebitcard' || method === 'debitcard' || method === 'creditcard') method = 'card';
+  if (!['cash', 'upi', 'card', 'bank_transfer', 'razorpay', 'stripe', 'other'].includes(method)) method = 'other';
 
   let enrollment;
   if (enrollmentId) {
@@ -28,7 +34,7 @@ exports.payMyFees = asyncHandler(async (req, res, next) => {
     enrollment: enrollment._id,
     student: req.user._id,
     amount,
-    method: method || 'UPI',
+    method,
     transactionId: txn,
     notes: 'Paid online by student',
     status: 'completed',
@@ -38,7 +44,7 @@ exports.payMyFees = asyncHandler(async (req, res, next) => {
 
   enrollment.fee.paid += amount;
   enrollment.fee.due = Math.max(0, enrollment.fee.total - enrollment.fee.paid);
-  enrollment.fee.payments.push({ amount, method: method || 'UPI', transactionId: txn, paidOn: new Date(), notes: 'Paid online by student' });
+  enrollment.fee.payments.push({ amount, method, transactionId: txn, paidOn: new Date(), notes: 'Paid online by student' });
   await enrollment.save();
 
   return ApiResponse.created(res, 'Payment successful', { payment, enrollment });
