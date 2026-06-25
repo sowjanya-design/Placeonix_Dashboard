@@ -93,13 +93,36 @@ userSchema.pre('save', async function (next) {
   next();
 });
 
-// Auto-generate enrollment ID for students
+// Auto-generate a UNIQUE enrollment ID for students.
+// Uses the highest existing PLX{year}#### + 1 and then probes for the next free
+// slot, so it never collides after a student has been deleted (count-based IDs did).
 userSchema.pre('save', async function (next) {
   if (this.isNew && this.role === 'student' && !this.studentProfile?.enrollmentId) {
+    const Model = mongoose.model('User');
     const year = new Date().getFullYear();
-    const count = await mongoose.model('User').countDocuments({ role: 'student' });
+    const prefix = `PLX${year}`;
     this.studentProfile = this.studentProfile || {};
-    this.studentProfile.enrollmentId = `PLX${year}${String(count + 1).padStart(4, '0')}`;
+
+    const last = await Model.findOne({ 'studentProfile.enrollmentId': new RegExp('^' + prefix) })
+      .sort({ 'studentProfile.enrollmentId': -1 })
+      .select('studentProfile.enrollmentId')
+      .lean();
+
+    let n = 1;
+    if (last && last.studentProfile && last.studentProfile.enrollmentId) {
+      const parsed = parseInt(last.studentProfile.enrollmentId.slice(prefix.length), 10);
+      if (!Number.isNaN(parsed)) n = parsed + 1;
+    }
+
+    // Probe forward until we find an unused ID (guards against gaps/races).
+    let candidate;
+    // eslint-disable-next-line no-await-in-loop
+    do {
+      candidate = `${prefix}${String(n).padStart(4, '0')}`;
+      n += 1;
+    } while (await Model.exists({ 'studentProfile.enrollmentId': candidate }));
+
+    this.studentProfile.enrollmentId = candidate;
   }
   next();
 });
