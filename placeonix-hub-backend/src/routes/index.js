@@ -19,6 +19,7 @@ router.use('/payments', require('./paymentRoutes'));
 router.use('/certificates', require('./certificateRoutes'));
 router.use('/uploads', require('./uploadRoutes'));
 router.use('/analytics', require('./analyticsRoutes'));
+router.use('/search', require('./searchRoutes'));
 
 router.get('/', (req, res) => {
   res.json({
