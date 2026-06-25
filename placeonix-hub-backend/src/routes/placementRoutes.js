@@ -6,6 +6,7 @@ const { protect, authorize } = require('../middleware/auth');
 router.use(protect);
 
 router.get('/', ctrl.listDrives);
+router.get('/analytics', authorize('admin', 'mentor'), ctrl.placementAnalytics);
 router.get('/my/applications', authorize('student'), ctrl.myApplications);
 router.get('/:id', ctrl.getDrive);
 

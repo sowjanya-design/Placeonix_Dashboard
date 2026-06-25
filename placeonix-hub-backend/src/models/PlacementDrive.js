@@ -60,6 +60,15 @@ const placementDriveSchema = new mongoose.Schema(
           offerLetterUrl: String,
         },
         notes: String,
+        placedAt: Date,
+        history: [
+          {
+            stage: String,
+            at: { type: Date, default: Date.now },
+            by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+            note: String,
+          },
+        ],
       },
     ],
 

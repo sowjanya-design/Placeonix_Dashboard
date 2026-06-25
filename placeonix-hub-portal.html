@@ -1152,6 +1152,7 @@ var ROLES = {
       {id:'courses',label:'Courses',ico:'book'},
       {id:'sessions',label:'Sessions',ico:'calendar'},
       {id:'placements',label:'Placements',ico:'briefcase'},
+      {id:'companies',label:'Companies',ico:'briefcase'},
       {id:'leads',label:'Leads',ico:'target'},
       {id:'payments',label:'Payments',ico:'card'},
       {id:'certificates',label:'Certificates',ico:'award'},
@@ -1411,7 +1412,7 @@ async function showPage(id) {
   var nav = document.getElementById('nav-' + id);
   if (nav) nav.classList.add('active');
   var labels = {
-    dashboard: 'Dashboard', calendar: 'Calendar', 'my-courses': 'My Courses', 'my-students': 'My Students',
+    dashboard: 'Dashboard', calendar: 'Calendar', companies: 'Companies', 'my-courses': 'My Courses', 'my-students': 'My Students',
     attendance: 'Attendance', assignments: 'Assignments', exams: 'Exams',
     placements: 'Placements', announcements: 'Announcements', profile: 'Profile',
     support: 'Support', sessions: 'Sessions', 'attendance-mark': 'Mark Attendance',
@@ -1434,6 +1435,7 @@ async function renderPage(id) {
   var r = currentRole;
   if (id === 'dashboard') return renderDashboard(r);
   if (id === 'calendar') return renderCalendar(r);
+  if (id === 'companies') return renderCompanies();
   if (id === 'my-courses' || id === 'courses') return renderCourses(r);
   if (id === 'my-students' || id === 'students') return renderStudents(r);
   if (id === 'attendance') return r === 'student' ? renderAttendance() : renderAttendanceAdmin();
@@ -1566,6 +1568,81 @@ function gsGo(page, type, id){
   if(kind==='user'||kind==='course'||kind==='batch'){ setTimeout(function(){ try{ viewEntity(kind, id); }catch(e){} }, 360); }
 }
 document.addEventListener('click', function(e){ var w=document.getElementById('gsearchWrap'); var b=document.getElementById('gsResults'); if(w&&b&&!w.contains(e.target)) b.classList.remove('show'); });
+async function renderCompanies(){
+  var res = await apiFetch('/companies').catch(function(){ return {data:[]}; });
+  var items = res.data || [];
+  var cards = items.length ? items.map(function(c){
+    var init=(c.name||'?')[0].toUpperCase();
+    return '<div class="course-row">'+
+      '<div class="stat-ico" style="background:#e0e7ff;color:#4338ca;font-weight:800;width:44px;height:44px">'+init+'</div>'+
+      '<div class="course-info"><div class="course-name">'+escHtml(c.name)+'</div>'+
+      '<div class="course-desc">'+escHtml([c.industry,c.location].filter(Boolean).join(' · ')||'Employer')+(c.contactPerson?' · '+escHtml(c.contactPerson):'')+'</div></div>'+
+      (c.website?'<a href="'+escHtml(c.website)+'" target="_blank" class="continue-btn" style="background:transparent;color:var(--purple);border:1.5px solid var(--purple);text-decoration:none">Visit</a>':'')+
+      '<button class="continue-btn" style="background:transparent;color:var(--ink2);border:1.5px solid var(--line)" onclick="editCompany(\''+c._id+'\')">Edit</button>'+
+      '<button class="continue-btn" style="background:transparent;color:var(--red);border:1.5px solid var(--line)" onclick="deleteCompany(\''+c._id+'\',\''+escHtml((c.name||'').replace(/\x27/g,'')) +'\')">Delete</button>'+
+    '</div>';
+  }).join('') : '<div style="padding:1.5rem;color:var(--muted)">No companies yet. Add your first employer.</div>';
+  return '<div class="section-head"><span class="section-title">Company Database ('+items.length+')</span><button class="continue-btn" onclick="addCompany()">+ Add Company</button></div>'+
+    '<div class="mode-note online" style="margin-bottom:1.1rem"><div>&#127970; Reusable employer profiles. Add a company here, then attach it to placement drives.</div></div>'+
+    '<div class="course-list">'+cards+'</div>';
+}
+function _companyForm(title, initial, onSubmit){
+  initial=initial||{};
+  formModal({ title:title, submitLabel:'Save',
+    fields:[
+      {name:'name',label:'Company Name',value:initial.name||'',required:true},
+      {name:'industry',label:'Industry',value:initial.industry||'',placeholder:'IT Services, Fintech…'},
+      {name:'location',label:'Location',value:initial.location||''},
+      {name:'website',label:'Website',value:initial.website||'',placeholder:'https://…'},
+      {name:'contactPerson',label:'Contact Person',value:initial.contactPerson||''},
+      {name:'contactEmail',label:'Contact Email',value:initial.contactEmail||''},
+      {name:'contactPhone',label:'Contact Phone',value:initial.contactPhone||''},
+      {name:'notes',label:'Notes',type:'textarea',value:initial.notes||''}
+    ],
+    onSubmit:onSubmit
+  });
+}
+function addCompany(){
+  _companyForm('Add Company', {}, async function(v){
+    if(_demoMode){ toast('Company added (demo)','success'); return refreshPage(); }
+    await apiFetch('/companies',{method:'POST',body:JSON.stringify(v)});
+    toast('Company added','success'); refreshPage();
+  });
+}
+async function editCompany(id){
+  var c={};
+  if(!_demoMode){ try{ var r=await apiFetch('/companies'); c=(r.data||[]).filter(function(x){return String(x._id)===String(id);})[0]||{}; }catch(e){} }
+  _companyForm('Edit Company', c, async function(v){
+    if(_demoMode){ toast('Saved (demo)','success'); return refreshPage(); }
+    await apiFetch('/companies/'+id,{method:'PATCH',body:JSON.stringify(v)});
+    toast('Company updated','success'); refreshPage();
+  });
+}
+function deleteCompany(id, name){
+  confirmModal('Delete '+(name||'company')+'?','Remove this company from the database?','Delete',async function(){
+    if(_demoMode){ toast('Removed (demo)','success'); return refreshPage(); }
+    await apiFetch('/companies/'+id,{method:'DELETE'});
+    toast('Company removed','success'); refreshPage();
+  });
+}
+function placementAnalyticsHTML(an){
+  var stages=[{v:'applied',l:'Applied'},{v:'shortlisted',l:'Shortlisted'},{v:'interview_scheduled',l:'Interview'},{v:'offered',l:'Offered'},{v:'placed',l:'Placed'}];
+  var sc={applied:'#64748b',shortlisted:'#2563eb',interview_scheduled:'#d97706',offered:'#7c3aed',placed:'#059669'};
+  var max=Math.max.apply(null,stages.map(function(s){return (an.funnel&&an.funnel[s.v])||0;}).concat([1]));
+  var funnel=stages.map(function(s){ var n=(an.funnel&&an.funnel[s.v])||0; var w=Math.round(n/max*100); return '<div style="margin-bottom:.5rem"><div style="display:flex;justify-content:space-between;font-size:.74rem;font-weight:700;margin-bottom:.2rem"><span>'+s.l+'</span><span>'+n+'</span></div><div style="height:8px;background:var(--bg);border-radius:5px;overflow:hidden"><div style="height:100%;width:'+w+'%;background:'+sc[s.v]+'"></div></div></div>'; }).join('');
+  var byc=(an.byCourse||[]).sort(function(a,b){return b.placed-a.placed;}).slice(0,6).map(function(c){ return '<div style="display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid var(--line);font-size:.8rem"><span>'+escHtml(c.course)+'</span><span style="font-weight:800;color:#059669">'+c.placed+' placed</span></div>'; }).join('')||'<div style="color:var(--muted);font-size:.8rem">No placements yet.</div>';
+  return '<div class="section-head"><span class="section-title">Placement Analytics</span></div>'+
+    '<div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">'+
+      '<div class="stat-card"><div class="stat-ico" style="background:#d1fae5">&#127881;</div><div><div class="stat-v">'+(an.placementRate||0)+'%</div><div class="stat-l">Placement Rate</div></div></div>'+
+      '<div class="stat-card"><div class="stat-ico" style="background:#dbeafe">&#128101;</div><div><div class="stat-v">'+(an.placed||0)+'</div><div class="stat-l">Students Placed</div></div></div>'+
+      '<div class="stat-card"><div class="stat-ico" style="background:#ede9fe">&#128176;</div><div><div class="stat-v">&#8377;'+(an.avgPackage||0)+'L</div><div class="stat-l">Avg Package</div></div></div>'+
+      '<div class="stat-card"><div class="stat-ico" style="background:#fef3c7">&#11088;</div><div><div class="stat-v">&#8377;'+(an.highestPackage||0)+'L</div><div class="stat-l">Highest</div></div></div>'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin:1rem 0">'+
+      '<div class="form-section"><div class="form-section-title">Hiring Funnel</div>'+funnel+'</div>'+
+      '<div class="form-section"><div class="form-section-title">Placed by Course</div>'+byc+'</div>'+
+    '</div>';
+}
 function renderDashboard(role) {
   if (role === 'student') return renderStudentDash();
   if (role === 'mentor') return renderMentorDash();
@@ -2418,6 +2495,7 @@ async function renderPlacements(role) {
   var appliedIds = new Set(myApps.map(function(a){ return a.drive && (a.drive._id || a.drive); }));
   var openDrives = drives.filter(function(d){ return d.status === 'open'; });
   var isAdmin = role === 'admin';
+  var adminAnalytics=''; if(isAdmin){ try{ adminAnalytics=placementAnalyticsHTML((await apiFetch('/placements/analytics')).data||{}); }catch(e){} }
   var tableRows = drives.map(function(d) {
     var applied = appliedIds.has(d._id);
     var pkg = (d.package && d.package.min!=null) ? (d.package.min + (d.package.max!=null&&d.package.max!==d.package.min?'-'+d.package.max:'') + ' LPA') : '-';
@@ -2449,6 +2527,7 @@ async function renderPlacements(role) {
     <div class="place-stat"><div class="place-stat-ico">&#128203;</div><div class="place-stat-v">${myApps.length}</div><div class="place-stat-l">Applied</div></div>
     <div class="place-stat"><div class="place-stat-ico">&#127881;</div><div class="place-stat-v">${myApps.filter(function(a){return a.application&&a.application.status==='placed';}).length}</div><div class="place-stat-l">Placed</div></div>
   </div>
+  ${adminAnalytics}
   <div class="section-head"><span class="section-title">Placement Drives</span>${isAdmin?'<button class="continue-btn" onclick="addDrive()">+ New Drive</button>':''}</div>
   <div style="background:#fff;border-radius:14px;border:1px solid var(--line);overflow:hidden;margin-bottom:1.5rem">
     ${drives.length ? `<table class="drive-table" style="width:100%">
@@ -2464,23 +2543,52 @@ async function renderPlacements(role) {
   </div>`;
 }
 
+var _PLC_STAGES=[{v:'applied',l:'Applied'},{v:'shortlisted',l:'Shortlisted'},{v:'interview_scheduled',l:'Interview'},{v:'offered',l:'Offered'},{v:'placed',l:'Placed'},{v:'rejected',l:'Rejected'}];
+function plcStageLabel(v){ var s=_PLC_STAGES.filter(function(x){return x.v===v;})[0]; return s?s.l:v; }
 async function viewApplicants(id){
   _buildModal('Applicants', '<div style="padding:2rem">'+loadingHTML()+'</div>', '');
   try{
     var res = await apiFetch('/placements/'+id);
     var d = (res.data && (res.data.drive||res.data)) || {};
     var apps = d.applications || [];
+    var counts={}; _PLC_STAGES.forEach(function(s){counts[s.v]=0;});
+    apps.forEach(function(a){ if(counts[a.status]!=null) counts[a.status]++; });
+    var sc={applied:'#64748b',shortlisted:'#2563eb',interview_scheduled:'#d97706',offered:'#7c3aed',placed:'#059669',rejected:'#dc2626'};
+    var funnel='<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">'+_PLC_STAGES.map(function(s){ return '<div style="flex:1;min-width:74px;text-align:center;background:'+sc[s.v]+'14;border:1px solid '+sc[s.v]+'33;border-radius:9px;padding:.5rem .3rem"><div style="font-size:1.1rem;font-weight:800;color:'+sc[s.v]+'">'+counts[s.v]+'</div><div style="font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase">'+s.l+'</div></div>'; }).join('')+'</div>';
     var rows = apps.length ? apps.map(function(a){
-      var s = a.student || {}; var name = ((s.firstName||'')+' '+(s.lastName||'')).trim()||'Student';
-      var st = a.status || 'applied';
-      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.55rem 0;border-bottom:1px solid var(--line)">'+
-        '<div><div style="font-weight:600;font-size:.86rem">'+name+'</div><div style="font-size:.72rem;color:var(--muted)">'+(s.email||'')+'</div></div>'+
-        '<span class="badge '+(st==='placed'?'b-active':st==='rejected'?'b-due':'b-pending')+'">'+st+'</span></div>';
+      var s=a.student||{}; var name=((s.firstName||'')+' '+(s.lastName||'')).trim()||'Student';
+      var opts=_PLC_STAGES.map(function(st){ return '<option value="'+st.v+'"'+(st.v===a.status?' selected':'')+'>'+st.l+'</option>'; }).join('');
+      var hist=(a.history&&a.history.length)?'<button class="continue-btn" style="padding:.25rem .55rem;font-size:.66rem;background:transparent;color:var(--muted);border:1.5px solid var(--line)" onclick="appHistory(\''+id+'\',\''+a._id+'\')">History ('+a.history.length+')</button>':'';
+      var offer=(a.finalOffer&&a.finalOffer.ctc)?'<span style="font-size:.7rem;color:#059669;font-weight:700">&#8377;'+a.finalOffer.ctc+' LPA</span>':'';
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.7rem;padding:.6rem 0;border-bottom:1px solid var(--line);flex-wrap:wrap">'+
+        '<div style="min-width:0;flex:1"><div style="font-weight:600;font-size:.86rem">'+escHtml(name)+' '+offer+'</div><div style="font-size:.72rem;color:var(--muted)">'+escHtml(s.email||'')+'</div></div>'+
+        '<div style="display:flex;align-items:center;gap:.4rem">'+hist+'<select onchange="moveAppStage(\''+id+'\',\''+a._id+'\',this.value)" style="padding:.35rem .5rem;border:1.5px solid var(--line);border-radius:8px;font-size:.74rem;font-family:inherit;cursor:pointer">'+opts+'</select></div>'+
+      '</div>';
     }).join('') : '<div style="color:var(--muted);font-size:.85rem;padding:.6rem 0">No students have applied yet.</div>';
-    var body = '<div style="font-size:.82rem;color:var(--muted);margin-bottom:.8rem"><b>'+(d.company||'')+'</b> &bull; '+(d.role||'')+' &bull; '+apps.length+' applicant'+(apps.length===1?'':'s')+'</div>'+rows;
-    _buildModal('Applicants — '+(d.company||'Drive'), body, '<button class="btn-primary" onclick="closeModal()">Close</button>');
-    var box=document.querySelector('#modalOverlay .modal-box'); if(box) box.style.maxWidth='540px';
+    var body='<div style="font-size:.82rem;color:var(--muted);margin-bottom:.8rem"><b>'+escHtml(d.company||'')+'</b> &bull; '+escHtml(d.role||'')+' &bull; '+apps.length+' applicant'+(apps.length===1?'':'s')+'</div>'+funnel+rows;
+    _buildModal('Applicants — '+escHtml(d.company||'Drive'), body, '<button class="btn-primary" onclick="closeModal()">Close</button>');
+    var box=document.querySelector('#modalOverlay .modal-box'); if(box) box.style.maxWidth='600px';
   }catch(e){ _buildModal('Applicants', errorHTML(e.message), '<button class="btn-primary" onclick="closeModal()">Close</button>'); }
+}
+function moveAppStage(driveId, appId, stage){
+  if(stage==='offered'||stage==='placed'){
+    formModal({ title:(stage==='placed'?'Mark as Placed':'Record Offer'), submitLabel:'Save',
+      fields:[{name:'ctc',label:'Package (LPA)',type:'number',required:true},{name:'location',label:'Job Location'},{name:'note',label:'Note (optional)',type:'textarea'}],
+      onSubmit:async function(v){
+        if(_demoMode){ toast('Updated (demo)','success'); setTimeout(function(){viewApplicants(driveId);},60); return; }
+        await apiFetch('/placements/'+driveId+'/applications/'+appId,{method:'PATCH',body:JSON.stringify({status:stage,finalOffer:{ctc:Number(v.ctc),location:v.location},note:v.note})});
+        toast(stage==='placed'?'Marked as placed!':'Offer recorded','success'); setTimeout(function(){viewApplicants(driveId);},60);
+      } });
+    return;
+  }
+  if(_demoMode){ toast('Stage updated (demo)','success'); return; }
+  apiFetch('/placements/'+driveId+'/applications/'+appId,{method:'PATCH',body:JSON.stringify({status:stage})}).then(function(){ toast('Moved to '+plcStageLabel(stage),'success'); viewApplicants(driveId); }).catch(function(e){ toast(e.message,'error'); });
+}
+async function appHistory(driveId, appId){
+  try{ var res=await apiFetch('/placements/'+driveId); var d=(res.data&&(res.data.drive||res.data))||{}; var a=(d.applications||[]).filter(function(x){return String(x._id)===String(appId);})[0]||{}; var hs=a.history||[];
+    var body=hs.length?hs.slice().reverse().map(function(x){ return '<div style="display:flex;gap:.6rem;padding:.45rem 0;border-bottom:1px solid var(--line)"><div style="font-weight:700;font-size:.82rem;min-width:90px">'+plcStageLabel(x.stage)+'</div><div style="font-size:.74rem;color:var(--muted)">'+fmtDate(x.at)+(x.note?' &bull; '+escHtml(x.note):'')+'</div></div>'; }).join(''):'<div style="color:var(--muted)">No stage changes yet.</div>';
+    _buildModal('Stage History', body, '<button class="btn-primary" onclick="viewApplicants(\''+driveId+'\')">Back</button>');
+  }catch(e){ toast(e.message,'error'); }
 }
 async function applyDrive(driveId) {
   try {
@@ -2569,12 +2677,21 @@ function deleteAnnouncement(id){
 
 // ── Placement drives (admin) ──
 var _drivesCache = {};
-function _driveForm(title, submitLabel, initial, onSubmit){
+async function _driveForm(title, submitLabel, initial, onSubmit){
   initial = initial || {};
+  var companies=[];
+  if(!_demoMode){ try{ var cr=await apiFetch('/companies'); companies=(cr.data||[]).map(function(c){return {value:c.name,label:c.name};}); }catch(e){} }
+  var companyField;
+  if(companies.length){
+    if(initial.company && !companies.some(function(o){return o.value===initial.company;})) companies.unshift({value:initial.company,label:initial.company});
+    companyField={name:'company',label:'Company',type:'select',required:true,placeholder:'Select company…',value:initial.company||'',options:companies,help:'From your Company Database. Add more in the Companies tab.'};
+  } else {
+    companyField={name:'company',label:'Company',value:initial.company||'',required:true,help:'Tip: add reusable employers in the Companies tab to pick them here.'};
+  }
   formModal({
     title:title, submitLabel:submitLabel,
     fields:[
-      {name:'company',label:'Company',value:initial.company||'',required:true},
+      companyField,
       {name:'role',label:'Role',value:initial.role||'',required:true,placeholder:'e.g. Full Stack Developer'},
       {name:'min',label:'Package — Min (LPA)',type:'number',value:(initial.package&&initial.package.min!=null)?initial.package.min:'',required:true,placeholder:'5'},
       {name:'max',label:'Package — Max (LPA)',type:'number',value:(initial.package&&initial.package.max!=null)?initial.package.max:'',required:true,placeholder:'8'},

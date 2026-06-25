@@ -20,6 +20,7 @@ router.use('/certificates', require('./certificateRoutes'));
 router.use('/uploads', require('./uploadRoutes'));
 router.use('/analytics', require('./analyticsRoutes'));
 router.use('/search', require('./searchRoutes'));
+router.use('/companies', require('./companyRoutes'));
 
 router.get('/', (req, res) => {
   res.json({

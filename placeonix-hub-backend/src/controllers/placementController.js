@@ -95,10 +95,72 @@ exports.updateApplication = asyncHandler(async (req, res, next) => {
   const app = drive.applications.id(req.params.appId);
   if (!app) return next(new AppError('Application not found', 404));
 
+  const prevStatus = app.status;
+  const note = req.body.note;
   Object.assign(app, req.body);
-  await drive.save();
 
+  // Record stage transitions in the application's history.
+  if (req.body.status && req.body.status !== prevStatus) {
+    app.history = app.history || [];
+    app.history.push({ stage: req.body.status, at: new Date(), by: req.user._id, note: note || '' });
+    if (req.body.status === 'placed') app.placedAt = new Date();
+  }
+
+  await drive.save();
   return ApiResponse.success(res, 200, 'Application updated', { application: app });
+});
+
+// @desc   Placement analytics (funnel, rate, packages, by-course)
+// @route  GET /api/v1/placements/analytics
+exports.placementAnalytics = asyncHandler(async (req, res) => {
+  const Enrollment = require('../models/Enrollment');
+  const drives = await PlacementDrive.find();
+  const enrollments = await Enrollment.find().populate('course', 'title');
+
+  const studentCourse = {};
+  enrollments.forEach((e) => {
+    const sid = String(e.student);
+    if (!studentCourse[sid] && e.course) studentCourse[sid] = e.course.title;
+  });
+
+  const funnel = { applied: 0, shortlisted: 0, interview_scheduled: 0, offered: 0, placed: 0, rejected: 0 };
+  let totalApps = 0;
+  let placed = 0;
+  let sumCtc = 0;
+  let ctcCount = 0;
+  let highest = 0;
+  const byCourse = {};
+
+  drives.forEach((d) => {
+    (d.applications || []).forEach((a) => {
+      totalApps += 1;
+      if (funnel[a.status] != null) funnel[a.status] += 1;
+      if (a.status === 'placed') {
+        placed += 1;
+        const ctc = (a.finalOffer && a.finalOffer.ctc) || (d.package && d.package.max) || 0;
+        if (ctc) {
+          sumCtc += ctc;
+          ctcCount += 1;
+          if (ctc > highest) highest = ctc;
+        }
+        const course = studentCourse[String(a.student)] || 'Other';
+        byCourse[course] = byCourse[course] || { placed: 0 };
+        byCourse[course].placed += 1;
+      }
+    });
+  });
+
+  return ApiResponse.success(res, 200, 'Placement analytics', {
+    funnel,
+    totalDrives: drives.length,
+    openDrives: drives.filter((d) => d.status === 'open').length,
+    totalApplications: totalApps,
+    placed,
+    placementRate: totalApps ? Math.round((placed / totalApps) * 100) : 0,
+    avgPackage: ctcCount ? Math.round(sumCtc / ctcCount) : 0,
+    highestPackage: highest,
+    byCourse: Object.keys(byCourse).map((k) => ({ course: k, placed: byCourse[k].placed })),
+  });
 });
 
 // @desc   My applications (student)
