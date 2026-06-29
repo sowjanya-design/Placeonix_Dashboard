@@ -1483,7 +1483,7 @@ function fmtTime(iso) {
 }
 // —
 
-async function escHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function escHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 var _calRef=null, _calEvents=[];
 async function renderCalendar(role){
   var r = await Promise.all([
@@ -2534,13 +2534,13 @@ async function renderPlacements(role) {
       <thead><tr><th>Company</th><th>Role</th><th>Package</th><th>Deadline</th><th>Status</th><th>Action</th></tr></thead>
       <tbody>${tableRows}</tbody>
     </table>` : '<div style="padding:2rem;text-align:center;color:var(--muted)">No placement drives available.</div>'}
-  </div>
-  <div class="section-head"><span class="section-title">Quick Links</span></div>
+  </div>
+  ${role==='admin' ? '' : `<div class="section-head"><span class="section-title">Quick Links</span></div>
   <div class="quick-links">
     <div class="ql-item" onclick="toast('Resume Builder coming soon','info')"><div class="ql-ico">&#128196;</div><div class="ql-label">Resume Builder</div><div class="ql-sub">Create your professional resume</div></div>
     <div class="ql-item" onclick="toast('Interview prep resources coming soon','info')"><div class="ql-ico">&#128104;&#8205;&#128187;</div><div class="ql-label">Interview Prep</div><div class="ql-sub">Practice for interviews</div></div>
-    <div class="ql-item" onclick="openLiveChat()"><div class="ql-ico">&#127919;</div><div class="ql-label">Career Guidance</div><div class="ql-sub">Chat with our team</div></div>
-  </div>`;
+    <div class="ql-item" onclick="openLiveChat()"><div class="ql-ico">&#128172;</div><div class="ql-label">Career Guidance</div><div class="ql-sub">Chat with admin</div></div>
+  </div>`}`;
 }
 
 var _PLC_STAGES=[{v:'applied',l:'Applied'},{v:'shortlisted',l:'Shortlisted'},{v:'interview_scheduled',l:'Interview'},{v:'offered',l:'Offered'},{v:'placed',l:'Placed'},{v:'rejected',l:'Rejected'}];
