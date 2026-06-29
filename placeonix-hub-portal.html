@@ -1146,6 +1146,8 @@ var ROLES = {
     nav:[
       {id:'dashboard',label:'Dashboard',ico:'home'},
       {id:'calendar',label:'Calendar',ico:'calendar'},
+      {id:'mock-interviews',label:'Mock Interviews',ico:'chalkboard'},
+      {id:'question-bank',label:'Question Bank',ico:'book'},
       {id:'students',label:'Students',ico:'users'},
       {id:'mentors',label:'Mentors',ico:'chalkboard'},
       {id:'batches',label:'Batches',ico:'folder'},
@@ -1170,6 +1172,8 @@ var ROLES = {
     nav:[
       {id:'dashboard',label:'Dashboard',ico:'home'},
       {id:'calendar',label:'Calendar',ico:'calendar'},
+      {id:'mock-interviews',label:'Mock Interviews',ico:'chalkboard'},
+      {id:'question-bank',label:'Question Bank',ico:'book'},
       {id:'my-students',label:'My Students',ico:'users'},
       {id:'sessions',label:'Sessions',ico:'calendar'},
       {id:'assignments',label:'Assignments',ico:'clipboard'},
@@ -1187,6 +1191,8 @@ var ROLES = {
     nav:[
       {id:'dashboard',label:'Dashboard',ico:'home'},
       {id:'calendar',label:'Calendar',ico:'calendar'},
+      {id:'mock-interviews',label:'Mock Interviews',ico:'chalkboard'},
+      {id:'question-bank',label:'Question Bank',ico:'book'},
       {id:'my-courses',label:'My Courses',ico:'book'},
       {id:'attendance',label:'Attendance',ico:'calendar'},
       {id:'assignments',label:'Assignments',ico:'clipboard'},
@@ -1412,7 +1418,7 @@ async function showPage(id) {
   var nav = document.getElementById('nav-' + id);
   if (nav) nav.classList.add('active');
   var labels = {
-    dashboard: 'Dashboard', calendar: 'Calendar', companies: 'Companies', 'my-courses': 'My Courses', 'my-students': 'My Students',
+    dashboard: 'Dashboard', calendar: 'Calendar', companies: 'Companies', 'mock-interviews': 'Mock Interviews', 'question-bank': 'Question Bank', 'my-courses': 'My Courses', 'my-students': 'My Students',
     attendance: 'Attendance', assignments: 'Assignments', exams: 'Exams',
     placements: 'Placements', announcements: 'Announcements', profile: 'Profile',
     support: 'Support', sessions: 'Sessions', 'attendance-mark': 'Mark Attendance',
@@ -1436,6 +1442,8 @@ async function renderPage(id) {
   if (id === 'dashboard') return renderDashboard(r);
   if (id === 'calendar') return renderCalendar(r);
   if (id === 'companies') return renderCompanies();
+  if (id === 'mock-interviews') return renderMockInterviews(r);
+  if (id === 'question-bank') return renderQuestionBank(r);
   if (id === 'my-courses' || id === 'courses') return renderCourses(r);
   if (id === 'my-students' || id === 'students') return renderStudents(r);
   if (id === 'attendance') return r === 'student' ? renderAttendance() : renderAttendanceAdmin();
@@ -1642,6 +1650,169 @@ function placementAnalyticsHTML(an){
       '<div class="form-section"><div class="form-section-title">Hiring Funnel</div>'+funnel+'</div>'+
       '<div class="form-section"><div class="form-section-title">Placed by Course</div>'+byc+'</div>'+
     '</div>';
+}
+// ───────────────────────── MOCK INTERVIEWS ─────────────────────────
+async function renderMockInterviews(role){
+  var res = await apiFetch('/mock-interviews').catch(function(){ return {data:[]}; });
+  var mocks = res.data || [];
+  var canManage = role==='admin'||role==='mentor';
+  var done = mocks.filter(function(m){ return m.status==='completed' && m.overallScore!=null; });
+  var avg = done.length ? Math.round(done.reduce(function(a,m){return a+m.overallScore;},0)/done.length) : null;
+  var trend = '';
+  if(role==='student' && done.length>=2){
+    var first=done[done.length-1].overallScore, last=done[0].overallScore, diff=last-first;
+    trend = '<div class="stat-card"><div class="stat-ico" style="background:'+(diff>=0?'#d1fae5':'#fee2e2')+'">'+(diff>=0?'&#128200;':'&#128201;')+'</div><div><div class="stat-v">'+(diff>=0?'+':'')+diff+'</div><div class="stat-l">Improvement</div></div></div>';
+  }
+  var head = '<div class="section-head"><span class="section-title">Mock Interviews</span>'+(canManage?'<button class="continue-btn" onclick="scheduleMock()">+ Schedule Mock</button>':'')+'</div>';
+  var stats = '<div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">'+
+    '<div class="stat-card"><div class="stat-ico" style="background:var(--purple-lt)">&#127908;</div><div><div class="stat-v">'+mocks.length+'</div><div class="stat-l">Total</div></div></div>'+
+    '<div class="stat-card"><div class="stat-ico" style="background:#dbeafe">&#9989;</div><div><div class="stat-v">'+done.length+'</div><div class="stat-l">Completed</div></div></div>'+
+    '<div class="stat-card"><div class="stat-ico" style="background:#fef3c7">&#11088;</div><div><div class="stat-v">'+(avg!=null?avg+'/100':'—')+'</div><div class="stat-l">Avg Score</div></div></div>'+trend+'</div>';
+  if(!mocks.length) return head+stats+'<div style="padding:2rem;text-align:center;color:var(--muted)">No mock interviews yet.</div>';
+  var rows = mocks.map(function(m){
+    var s=m.student||{}; var sn=((s.firstName||'')+' '+(s.lastName||'')).trim();
+    var stc = m.status==='completed'?'b-active':m.status==='cancelled'?'b-due':'b-pending';
+    var score = m.overallScore!=null?'<span style="font-weight:800;color:var(--purple)">'+m.overallScore+'/100</span> ':'';
+    var who = role==='student' ? (m.role||m.type||'Interview') : escHtml(sn||'Student');
+    var btn = canManage ? '<button class="continue-btn" style="padding:.4rem .8rem;font-size:.74rem" onclick="recordMock(\''+m._id+'\')">'+(m.status==='completed'?'Edit Feedback':'Record Feedback')+'</button>'
+      : (m.status==='completed'?'<button class="continue-btn" style="padding:.4rem .8rem;font-size:.74rem;background:transparent;color:var(--purple);border:1.5px solid var(--purple)" onclick="viewMockFeedback(\''+m._id+'\')">View Feedback</button>':'');
+    return '<div class="course-row">'+
+      '<div class="stat-ico" style="background:#ede9fe;color:var(--purple);font-weight:800;width:44px;height:44px">&#127908;</div>'+
+      '<div class="course-info"><div class="course-name">'+escHtml(m.title||'Mock Interview')+' '+score+'</div>'+
+      '<div class="course-desc">'+who+' &bull; '+(m.type||'technical')+' &bull; '+fmtDate(m.scheduledAt)+'</div></div>'+
+      '<span class="badge '+stc+'">'+(m.status||'scheduled')+'</span>'+btn+
+      (canManage?'<button class="continue-btn" style="padding:.4rem .7rem;font-size:.74rem;background:transparent;color:var(--red);border:1.5px solid var(--line)" onclick="deleteMock(\''+m._id+'\')">Delete</button>':'')+
+    '</div>';
+  }).join('');
+  return head+stats+'<div class="course-list">'+rows+'</div>';
+}
+async function scheduleMock(){
+  var students = _demoMode ? [{value:'demo',label:'Arjun Reddy'}] : await loadOptions('/users?role=student&limit=300',fullName);
+  formModal({ title:'Schedule Mock Interview', submitLabel:'Schedule',
+    fields:[
+      {name:'student',label:'Student',type:'select',required:true,placeholder:'Select student…',options:students},
+      {name:'title',label:'Title',required:true,placeholder:'e.g. Technical Round — Full Stack'},
+      {name:'role',label:'Target Role',placeholder:'Full Stack Developer'},
+      {name:'company',label:'Target Company (optional)'},
+      {name:'type',label:'Type',type:'select',value:'technical',options:[{value:'technical',label:'Technical'},{value:'hr',label:'HR'},{value:'aptitude',label:'Aptitude'},{value:'group-discussion',label:'Group Discussion'},{value:'system-design',label:'System Design'}]},
+      {name:'scheduledAt',label:'Date & Time',type:'datetime-local',required:true},
+      {name:'mode',label:'Mode',type:'select',value:'online',options:[{value:'online',label:'Online'},{value:'offline',label:'Offline'}]},
+      {name:'meetingLink',label:'Meeting Link (optional)'}
+    ],
+    onSubmit:async function(v){
+      if(_demoMode){ toast('Mock interview scheduled (demo)','success'); return refreshPage(); }
+      await apiFetch('/mock-interviews',{method:'POST',body:JSON.stringify(v)});
+      toast('Mock interview scheduled','success'); refreshPage();
+    }
+  });
+}
+async function recordMock(id){
+  var m={};
+  if(!_demoMode){ try{ m=((await apiFetch('/mock-interviews')).data||[]).filter(function(x){return String(x._id)===String(id);})[0]||{}; }catch(e){} }
+  formModal({ title:'Record Feedback', submitLabel:'Save',
+    fields:[
+      {name:'status',label:'Status',type:'select',value:m.status||'completed',options:[{value:'completed',label:'Completed'},{value:'scheduled',label:'Scheduled'},{value:'cancelled',label:'Cancelled'}]},
+      {name:'overallScore',label:'Overall Score (0-100)',type:'number',value:m.overallScore!=null?m.overallScore:''},
+      {name:'strengths',label:'Strengths',type:'textarea',value:m.strengths||''},
+      {name:'improvements',label:'Areas to Improve',type:'textarea',value:m.improvements||''},
+      {name:'notes',label:'Notes',type:'textarea',value:m.notes||''}
+    ],
+    onSubmit:async function(v){
+      v.overallScore = v.overallScore===''?null:Number(v.overallScore);
+      if(_demoMode){ toast('Feedback saved (demo)','success'); return refreshPage(); }
+      await apiFetch('/mock-interviews/'+id,{method:'PATCH',body:JSON.stringify(v)});
+      toast('Feedback saved','success'); refreshPage();
+    }
+  });
+}
+async function viewMockFeedback(id){
+  try{
+    var m=((await apiFetch('/mock-interviews')).data||[]).filter(function(x){return String(x._id)===String(id);})[0]||{};
+    var body='<div style="font-size:.85rem;line-height:1.7">'+
+      (m.overallScore!=null?'<div style="font-size:1.4rem;font-weight:800;color:var(--purple);margin-bottom:.6rem">'+m.overallScore+'/100</div>':'')+
+      (m.strengths?'<div style="margin-bottom:.6rem"><b>&#9989; Strengths</b><br>'+escHtml(m.strengths)+'</div>':'')+
+      (m.improvements?'<div style="margin-bottom:.6rem"><b>&#128161; Improve</b><br>'+escHtml(m.improvements)+'</div>':'')+
+      (m.notes?'<div><b>&#128221; Notes</b><br>'+escHtml(m.notes)+'</div>':'')+
+      (m.overallScore==null&&!m.strengths?'<div style="color:var(--muted)">Feedback not recorded yet.</div>':'')+
+    '</div>';
+    _buildModal('Feedback — '+escHtml(m.title||'Mock'), body, '<button class="btn-primary" onclick="closeModal()">Close</button>');
+  }catch(e){ toast(e.message,'error'); }
+}
+function deleteMock(id){
+  confirmModal('Delete Mock Interview','Remove this mock interview?','Delete',async function(){
+    if(_demoMode){ toast('Removed (demo)','success'); return refreshPage(); }
+    await apiFetch('/mock-interviews/'+id,{method:'DELETE'});
+    toast('Removed','success'); refreshPage();
+  });
+}
+// ───────────────────────── QUESTION BANK ─────────────────────────
+var _qbFilter={search:'',topic:'',difficulty:''};
+async function renderQuestionBank(role){
+  var qs=[]; var params=[];
+  if(_qbFilter.search) params.push('search='+encodeURIComponent(_qbFilter.search));
+  if(_qbFilter.topic) params.push('topic='+encodeURIComponent(_qbFilter.topic));
+  if(_qbFilter.difficulty) params.push('difficulty='+encodeURIComponent(_qbFilter.difficulty));
+  try{ qs=(await apiFetch('/question-bank'+(params.length?'?'+params.join('&'):''))).data||[]; }catch(e){}
+  var canManage = role==='admin'||role==='mentor';
+  var dc={easy:'#059669',medium:'#d97706',hard:'#dc2626'};
+  var head='<div class="section-head"><span class="section-title">Interview Question Bank</span>'+(canManage?'<button class="continue-btn" onclick="addQuestion()">+ Add Question</button>':'')+'</div>';
+  var filters='<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">'+
+    '<input id="qbSearch" placeholder="Search questions, company, role…" value="'+escHtml(_qbFilter.search)+'" oninput="_qbDebounce(this.value)" style="flex:1;min-width:200px;padding:.55rem .8rem;border:1.5px solid var(--line);border-radius:10px;font-size:.85rem;font-family:inherit"/>'+
+    '<select onchange="_qbSet(\'difficulty\',this.value)" style="padding:.55rem;border:1.5px solid var(--line);border-radius:10px;font-family:inherit"><option value="">All levels</option><option value="easy"'+(_qbFilter.difficulty==='easy'?' selected':'')+'>Easy</option><option value="medium"'+(_qbFilter.difficulty==='medium'?' selected':'')+'>Medium</option><option value="hard"'+(_qbFilter.difficulty==='hard'?' selected':'')+'>Hard</option></select>'+
+  '</div>';
+  if(!qs.length) return head+filters+'<div style="padding:2rem;text-align:center;color:var(--muted)">No questions found.</div>';
+  var rows=qs.map(function(q){
+    var meta=[q.company,q.role,q.topic].filter(Boolean).map(function(t){return escHtml(t);}).join(' &bull; ');
+    var manage = canManage?'<div style="display:flex;gap:.4rem;margin-top:.5rem"><button class="continue-btn" style="padding:.3rem .7rem;font-size:.7rem;background:transparent;color:var(--ink2);border:1.5px solid var(--line)" onclick="editQuestion(\''+q._id+'\')">Edit</button><button class="continue-btn" style="padding:.3rem .7rem;font-size:.7rem;background:transparent;color:var(--red);border:1.5px solid var(--line)" onclick="deleteQuestion(\''+q._id+'\')">Delete</button></div>':'';
+    return '<div class="ann-item" style="align-items:flex-start"><div class="ann-dot" style="background:'+(dc[q.difficulty]||'#64748b')+'"></div><div style="flex:1">'+
+      '<div class="ann-title">'+escHtml(q.question)+'</div>'+
+      (q.answer?'<div class="ann-body" style="margin-top:.3rem"><b>Answer:</b> '+escHtml(q.answer)+'</div>':'')+
+      '<div class="ann-date">'+(meta||'General')+' &bull; <span style="color:'+(dc[q.difficulty]||'#64748b')+';font-weight:700;text-transform:capitalize">'+(q.difficulty||'medium')+'</span></div>'+
+      manage+
+    '</div></div>';
+  }).join('');
+  return head+filters+'<div class="ann-list">'+rows+'</div>';
+}
+var _qbTimer=null;
+function _qbDebounce(v){ clearTimeout(_qbTimer); _qbTimer=setTimeout(function(){ _qbFilter.search=v; _qbRefresh(); }, 300); }
+function _qbSet(k,v){ _qbFilter[k]=v; _qbRefresh(); }
+async function _qbRefresh(){ var el=document.getElementById('pages'); if(el) el.innerHTML=await renderQuestionBank(currentRole); var f=document.getElementById('qbSearch'); if(f){ f.focus(); f.setSelectionRange(f.value.length,f.value.length); } }
+function _questionForm(title, initial, onSubmit){
+  initial=initial||{};
+  formModal({ title:title, submitLabel:'Save',
+    fields:[
+      {name:'question',label:'Question',type:'textarea',value:initial.question||'',required:true},
+      {name:'answer',label:'Answer / Key points (optional)',type:'textarea',value:initial.answer||''},
+      {name:'company',label:'Company (optional)',value:initial.company||''},
+      {name:'role',label:'Role (optional)',value:initial.role||''},
+      {name:'topic',label:'Topic',value:initial.topic||'',placeholder:'DSA, React, DBMS…'},
+      {name:'difficulty',label:'Difficulty',type:'select',value:initial.difficulty||'medium',options:[{value:'easy',label:'Easy'},{value:'medium',label:'Medium'},{value:'hard',label:'Hard'}]}
+    ],
+    onSubmit:onSubmit
+  });
+}
+function addQuestion(){
+  _questionForm('Add Question', {}, async function(v){
+    if(_demoMode){ toast('Question added (demo)','success'); return _qbRefresh(); }
+    await apiFetch('/question-bank',{method:'POST',body:JSON.stringify(v)});
+    toast('Question added','success'); _qbRefresh();
+  });
+}
+async function editQuestion(id){
+  var q={};
+  if(!_demoMode){ try{ q=((await apiFetch('/question-bank')).data||[]).filter(function(x){return String(x._id)===String(id);})[0]||{}; }catch(e){} }
+  _questionForm('Edit Question', q, async function(v){
+    if(_demoMode){ toast('Saved (demo)','success'); return _qbRefresh(); }
+    await apiFetch('/question-bank/'+id,{method:'PATCH',body:JSON.stringify(v)});
+    toast('Question updated','success'); _qbRefresh();
+  });
+}
+function deleteQuestion(id){
+  confirmModal('Delete Question','Remove this question?','Delete',async function(){
+    if(_demoMode){ toast('Removed (demo)','success'); return _qbRefresh(); }
+    await apiFetch('/question-bank/'+id,{method:'DELETE'});
+    toast('Removed','success'); _qbRefresh();
+  });
 }
 function renderDashboard(role) {
   if (role === 'student') return renderStudentDash();
