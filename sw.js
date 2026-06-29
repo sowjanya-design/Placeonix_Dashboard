@@ -1,5 +1,7 @@
-// Placeonix Hub — basic offline shell service worker
-const CACHE = 'plx-cache-v1';
+// Placeonix Hub service worker — v3 (network-only).
+// A dashboard must always show fresh data, so this SW deliberately does NOT
+// cache anything. It exists only to make the app installable (PWA) and to
+// purge any caches left by older caching service workers.
 
 self.addEventListener('install', function () {
   self.skipWaiting();
@@ -7,25 +9,13 @@ self.addEventListener('install', function () {
 
 self.addEventListener('activate', function (e) {
   e.waitUntil(
-    caches.keys().then(function (keys) {
-      return Promise.all(keys.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); }));
-    }).then(function () { return self.clients.claim(); })
+    caches.keys()
+      .then(function (keys) { return Promise.all(keys.map(function (k) { return caches.delete(k); })); })
+      .then(function () { return self.clients.claim(); })
   );
 });
 
-// Network-first for same-origin GET pages/assets; never cache API calls.
+// Network-only passthrough — never serve cached/stale content.
 self.addEventListener('fetch', function (e) {
-  var url;
-  try { url = new URL(e.request.url); } catch (err) { return; }
-  if (e.request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.indexOf('/api/') === 0) return;
-
-  e.respondWith(
-    fetch(e.request)
-      .then(function (res) {
-        var copy = res.clone();
-        caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
-        return res;
-      })
-      .catch(function () { return caches.match(e.request); })
-  );
+  e.respondWith(fetch(e.request));
 });
