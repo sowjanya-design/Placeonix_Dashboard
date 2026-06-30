@@ -9,6 +9,78 @@ const { ATTENDANCE } = require('../config/constants');
 
 const VALID_STATUSES = Object.values(ATTENDANCE); // ['present','absent','late','excused']
 
+// @desc   Admin day-wise / batch-wise attendance overview
+// @route  GET /api/v1/attendance/overview?date=&batch=
+exports.attendanceOverview = asyncHandler(async (req, res) => {
+  const date = req.query.date ? new Date(req.query.date) : new Date();
+  const dayStart = new Date(date); dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(date); dayEnd.setHours(23, 59, 59, 999);
+
+  const recFilter = { date: { $gte: dayStart, $lte: dayEnd } };
+  if (req.query.batch) recFilter.batch = req.query.batch;
+
+  const records = await Attendance.find(recFilter)
+    .populate({ path: 'batch', select: 'name code mentor', populate: { path: 'mentor', select: 'firstName lastName' } })
+    .populate('student', 'firstName lastName studentProfile.enrollmentId');
+
+  // Group by batch
+  const byBatch = {};
+  records.forEach((r) => {
+    const bid = r.batch ? String(r.batch._id) : 'unknown';
+    if (!byBatch[bid]) {
+      byBatch[bid] = {
+        batchId: bid,
+        batchName: r.batch ? r.batch.name : 'Unknown',
+        batchCode: r.batch ? r.batch.code : '',
+        mentor: r.batch && r.batch.mentor ? `${r.batch.mentor.firstName || ''} ${r.batch.mentor.lastName || ''}`.trim() : '—',
+        present: 0, absent: 0, late: 0, total: 0, students: [],
+      };
+    }
+    const b = byBatch[bid];
+    b.total += 1;
+    if (r.status === 'present') b.present += 1;
+    else if (r.status === 'late') b.late += 1;
+    else b.absent += 1;
+    b.students.push({
+      name: r.student ? `${r.student.firstName || ''} ${r.student.lastName || ''}`.trim() : 'Student',
+      enrollmentId: r.student && r.student.studentProfile ? r.student.studentProfile.enrollmentId : '',
+      status: r.status,
+    });
+  });
+
+  const batches = Object.values(byBatch).map((b) => ({
+    ...b,
+    percentage: b.total ? Math.round(((b.present + b.late) / b.total) * 100) : 0,
+  }));
+
+  // Mentor activity that day: sessions held + whether attendance was taken
+  const Session = require('../models/Session');
+  const sessions = await Session.find({ startTime: { $gte: dayStart, $lte: dayEnd } })
+    .populate('instructor', 'firstName lastName')
+    .populate('batch', 'name code');
+  const mentorActivity = sessions.map((s) => ({
+    mentor: s.instructor ? `${s.instructor.firstName || ''} ${s.instructor.lastName || ''}`.trim() : '—',
+    batch: s.batch ? s.batch.name : '',
+    title: s.title,
+    status: s.status,
+    attendanceTaken: !!s.attendanceTaken,
+    startTime: s.startTime,
+  }));
+
+  const totals = batches.reduce(
+    (a, b) => ({ present: a.present + b.present, absent: a.absent + b.absent, late: a.late + b.late, total: a.total + b.total }),
+    { present: 0, absent: 0, late: 0, total: 0 }
+  );
+
+  return ApiResponse.success(res, 200, 'Attendance overview', {
+    date: dayStart,
+    batches,
+    mentorActivity,
+    totals,
+    percentage: totals.total ? Math.round(((totals.present + totals.late) / totals.total) * 100) : 0,
+  });
+});
+
 // @desc   Mark attendance for a batch on a date (mentor/admin)
 // @route  POST /api/v1/attendance/mark
 // @body   { batchId, date, sessionTitle, records: [{studentId, status, notes}] }

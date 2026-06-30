@@ -5,6 +5,7 @@ const { protect, authorize } = require('../middleware/auth');
 
 router.use(protect);
 
+router.get('/overview', authorize('admin'), ctrl.attendanceOverview);
 router.post('/mark', authorize('mentor', 'admin'), ctrl.markAttendance);
 router.get('/me', authorize('student'), ctrl.myAttendance);
 router.get('/batch/:batchId', authorize('mentor', 'admin'), ctrl.getBatchAttendance);

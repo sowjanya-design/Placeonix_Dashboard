@@ -22,6 +22,8 @@ router.use('/analytics', require('./analyticsRoutes'));
 router.use('/search', require('./searchRoutes'));
 router.use('/companies', require('./companyRoutes'));
 router.use('/mock-interviews', require('./mockInterviewRoutes'));
+router.use('/alumni', require('./alumniRoutes'));
+router.use('/office-hours', require('./officeHourRoutes'));
 
 router.get('/', (req, res) => {
   res.json({
