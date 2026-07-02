@@ -78,6 +78,13 @@ exports.applyToDrive = asyncHandler(async (req, res, next) => {
   const existing = drive.applications.find((a) => String(a.student) === String(req.user._id));
   if (existing) return next(new AppError('Already applied', 409));
 
+  // Require a resume on the student's profile so it can be shared with the recruiter.
+  const User = require('../models/User');
+  const me = await User.findById(req.user._id).select('studentProfile');
+  if (!me || !me.studentProfile || !me.studentProfile.resume) {
+    return next(new AppError('Please add your resume link in your Profile before applying', 400));
+  }
+
   drive.applications.push({ student: req.user._id, appliedAt: new Date() });
   await drive.save();
 

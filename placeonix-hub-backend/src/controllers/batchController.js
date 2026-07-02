@@ -28,7 +28,20 @@ exports.listBatches = asyncHandler(async (req, res) => {
     .skip((page - 1) * limit)
     .limit(Number(limit));
 
-  return ApiResponse.paginated(res, 'Batches fetched', batches, page, limit, total);
+  // Real enrolled count per batch (stored enrolledCount can be stale on seeded data).
+  const counts = await Enrollment.aggregate([
+    { $match: { batch: { $in: batches.map((b) => b._id) } } },
+    { $group: { _id: '$batch', n: { $sum: 1 } } },
+  ]);
+  const countMap = {};
+  counts.forEach((c) => { countMap[String(c._id)] = c.n; });
+  const withCounts = batches.map((b) => {
+    const obj = b.toObject();
+    obj.enrolledCount = countMap[String(b._id)] || 0;
+    return obj;
+  });
+
+  return ApiResponse.paginated(res, 'Batches fetched', withCounts, page, limit, total);
 });
 
 // @desc   Get batch with students

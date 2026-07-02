@@ -27,6 +27,27 @@ exports.listUsers = asyncHandler(async (req, res) => {
     .skip((page - 1) * limit)
     .limit(Number(limit));
 
+  // For mentors, attach a real studentCount (distinct students across their batches).
+  if (role === 'mentor' && users.length) {
+    const Batch = require('../models/Batch');
+    const batches = await Batch.find({ mentor: { $in: users.map((u) => u._id) } }).select('_id mentor');
+    const batchToMentor = {};
+    batches.forEach((b) => { batchToMentor[String(b._id)] = String(b.mentor); });
+    const enrollments = await Enrollment.find({ batch: { $in: batches.map((b) => b._id) } }).select('batch student');
+    const mentorStudents = {};
+    enrollments.forEach((e) => {
+      const mid = batchToMentor[String(e.batch)];
+      if (!mid) return;
+      (mentorStudents[mid] = mentorStudents[mid] || new Set()).add(String(e.student));
+    });
+    const withCounts = users.map((u) => {
+      const obj = u.toObject();
+      obj.studentCount = mentorStudents[String(u._id)] ? mentorStudents[String(u._id)].size : 0;
+      return obj;
+    });
+    return ApiResponse.paginated(res, 'Users fetched', withCounts, page, limit, total);
+  }
+
   return ApiResponse.paginated(res, 'Users fetched', users, page, limit, total);
 });
 

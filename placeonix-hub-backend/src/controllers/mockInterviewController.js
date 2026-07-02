@@ -7,8 +7,18 @@ const asyncHandler = require('../utils/asyncHandler');
 // @route  GET /api/v1/mock-interviews
 exports.listMocks = asyncHandler(async (req, res) => {
   const filter = {};
-  if (req.user.role === 'student') filter.student = req.user._id;
-  else if (req.user.role === 'mentor') filter.interviewer = req.user._id;
+  if (req.user.role === 'student') {
+    filter.student = req.user._id;
+  } else if (req.user.role === 'mentor') {
+    // Mentors see mocks they conduct AND mocks for any student in their batches
+    // (so admin-scheduled mocks for their students show up too).
+    const Batch = require('../models/Batch');
+    const Enrollment = require('../models/Enrollment');
+    const myBatches = await Batch.find({ mentor: req.user._id }).select('_id');
+    const enrolls = await Enrollment.find({ batch: { $in: myBatches.map((b) => b._id) } }).select('student');
+    const studentIds = enrolls.map((e) => e.student);
+    filter.$or = [{ interviewer: req.user._id }, { student: { $in: studentIds } }];
+  }
   if (req.query.student) filter.student = req.query.student;
 
   const mocks = await MockInterview.find(filter)

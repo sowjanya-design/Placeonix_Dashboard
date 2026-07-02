@@ -785,7 +785,7 @@ body{overflow:hidden;background:var(--bg)}
         </div>
         <button class="login-btn" id="loginBtn" onclick="doLogin()">Login <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
         <div id="loginErr" style="color:var(--red);font-size:.82rem;text-align:center;margin-top:.8rem;display:none"></div>
-        <div class="login-help">Need help? Contact your administrator</div>
+        <div class="login-help">Need help? <a href="mailto:support@placeonix.in?subject=Placeonix%20Support" style="color:var(--purple);font-weight:700;text-decoration:none">Contact your administrator</a></div>
         <div class="demo-divider"><span>Quick Demo Access</span></div>
         <div class="demo-btns">
           <button class="demo-btn" onclick="quickLogin(event,'admin')">
@@ -1699,9 +1699,16 @@ async function scheduleMock(){
     if(!students.length){ toast('No students assigned to you yet. Enroll students into your batch first.','info'); return; }
   }
   else { students = await loadOptions('/users?role=student&limit=300',fullName); }
+  // Admins can assign a mentor as the interviewer so it shows in that mentor's list.
+  var interviewerField = [];
+  if(currentRole==='admin' && !_demoMode){
+    var mentors = await loadOptions('/users?role=mentor&limit=100',fullName);
+    interviewerField = [{name:'interviewer',label:'Interviewer (mentor)',type:'select',placeholder:'Assign a mentor (optional)',options:mentors}];
+  }
   formModal({ title:'Schedule Mock Interview', submitLabel:'Schedule',
     fields:[
-      {name:'student',label:'Student',type:'select',required:true,placeholder:'Select student…',options:students},
+      {name:'student',label:'Student',type:'select',required:true,placeholder:'Select student…',options:students}
+    ].concat(interviewerField).concat([
       {name:'title',label:'Title',required:true,placeholder:'e.g. Technical Round — Full Stack'},
       {name:'role',label:'Target Role',placeholder:'Full Stack Developer'},
       {name:'company',label:'Target Company (optional)'},
@@ -1709,8 +1716,9 @@ async function scheduleMock(){
       {name:'scheduledAt',label:'Date & Time',type:'datetime-local',required:true},
       {name:'mode',label:'Mode',type:'select',value:'online',options:[{value:'online',label:'Online'},{value:'offline',label:'Offline'}]},
       {name:'meetingLink',label:'Meeting Link (optional)'}
-    ],
+    ]),
     onSubmit:async function(v){
+      if(v.interviewer==='') delete v.interviewer;
       if(_demoMode){ toast('Mock interview scheduled (demo)','success'); return refreshPage(); }
       await apiFetch('/mock-interviews',{method:'POST',body:JSON.stringify(v)});
       toast('Mock interview scheduled','success'); refreshPage();
@@ -1914,6 +1922,52 @@ function attDayBatchDetail(batchId,date){
     return '<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--line);font-size:.85rem"><span>'+escHtml(s.name)+' <span style="color:var(--muted);font-size:.72rem">'+escHtml(s.enrollmentId||'')+'</span></span><span class="badge '+c+'">'+s.status+'</span></div>';
   }).join('')||'<div style="color:var(--muted)">No records.</div>';
   _buildModal(escHtml(b.batchName)+' — '+fmtDate(date), rows, '<button class="btn-primary" onclick="closeModal()">Close</button>');
+}
+async function viewCourseDetail(id){
+  _buildModal('Course', '<div style="padding:2rem">'+loadingHTML()+'</div>', '');
+  try{
+    var res=await apiFetch('/courses/'+id);
+    var c=(res.data&&(res.data.course||res.data))||{};
+    var mods=c.modules||[];
+    var modHtml=mods.length?mods.map(function(m,i){
+      var topics=(m.topics&&m.topics.length)?'<div style="font-size:.76rem;color:var(--muted);margin-top:.2rem">'+m.topics.map(function(t){return escHtml(t.title||t);}).join(' • ')+'</div>':'';
+      return '<div style="padding:.6rem 0;border-bottom:1px solid var(--line)"><div style="font-weight:700;font-size:.86rem">'+(i+1)+'. '+escHtml(m.title||'Module')+'</div>'+topics+'</div>';
+    }).join(''):'<div style="color:var(--muted);font-size:.85rem">Curriculum coming soon.</div>';
+    var fee=(c.fee&&c.fee.amount)?'&#8377;'+c.fee.amount.toLocaleString('en-IN'):'—';
+    var body='<div style="font-size:.85rem;color:var(--ink2);line-height:1.6">'+
+      '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.9rem">'+
+        '<span class="badge b-active">'+escHtml(c.category||'Course')+'</span>'+
+        (c.duration?'<span class="badge b-pending">'+escHtml(c.duration)+'</span>':'')+
+        '<span class="badge" style="background:#ede9fe;color:var(--purple)">Fee: '+fee+'</span>'+
+      '</div>'+
+      (c.description?'<div style="margin-bottom:1rem">'+escHtml(c.description)+'</div>':'')+
+      '<div class="learn-sec-title">Curriculum ('+mods.length+' module'+(mods.length===1?'':'s')+')</div>'+modHtml+
+    '</div>';
+    _buildModal(escHtml(c.title||'Course'), body, '<button class="btn-primary" onclick="closeModal()">Close</button>');
+    var box=document.querySelector('#modalOverlay .modal-box'); if(box) box.style.maxWidth='620px';
+  }catch(e){ _buildModal('Course', errorHTML(e.message), '<button class="btn-primary" onclick="closeModal()">Close</button>'); }
+}
+async function batchStudents(id){
+  _buildModal('Batch Students', '<div style="padding:2rem">'+loadingHTML()+'</div>', '');
+  try{
+    var res=await apiFetch('/batches/'+id);
+    var d=res.data||{}; var batch=d.batch||d; var enrollments=d.enrollments||[];
+    var rows=enrollments.length?enrollments.map(function(e){
+      var s=e.student||{}; var name=((s.firstName||'')+' '+(s.lastName||'')).trim()||'Student';
+      var prog=(e.progress&&e.progress.overall)||0;
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.6rem 0;border-bottom:1px solid var(--line)">'+
+        '<div style="min-width:0"><div style="font-weight:600;font-size:.86rem">'+escHtml(name)+'</div><div style="font-size:.72rem;color:var(--muted)">'+escHtml(s.email||'')+' '+escHtml((s.studentProfile&&s.studentProfile.enrollmentId)||'')+'</div></div>'+
+        '<div style="min-width:120px;text-align:right"><div style="font-size:.72rem;font-weight:700;margin-bottom:.2rem">'+prog+'% complete</div><div class="pb"><div class="pf" style="width:'+prog+'%"></div></div></div>'+
+      '</div>';
+    }).join(''):'<div style="color:var(--muted);font-size:.85rem;padding:.6rem 0">No students enrolled in this batch yet.</div>';
+    var body='<div style="font-size:.82rem;color:var(--muted);margin-bottom:.8rem">&#128218; '+escHtml((batch.course&&batch.course.title)||'')+' &bull; '+enrollments.length+' student'+(enrollments.length===1?'':'s')+'</div>'+rows;
+    _buildModal('Students — '+escHtml(batch.name||'Batch'), body, '<button class="btn-primary" onclick="closeModal()">Close</button>');
+    var box=document.querySelector('#modalOverlay .modal-box'); if(box) box.style.maxWidth='560px';
+  }catch(e){ _buildModal('Batch Students', errorHTML(e.message), '<button class="btn-primary" onclick="closeModal()">Close</button>'); }
+}
+function updateLeadStatus(id, status){
+  if(_demoMode){ toast('Status updated (demo)','success'); return; }
+  apiFetch('/leads/'+id,{method:'PATCH',body:JSON.stringify({status:status})}).then(function(){ toast('Lead moved to '+status,'success'); refreshPage(); }).catch(function(e){ toast(e.message,'error'); });
 }
 function renderDashboard(role) {
   if (role === 'student') return renderStudentDash();
@@ -2210,7 +2264,7 @@ function courseCardPremium(c, role) {
   var s = getCourseStyle(c.category);
   var tags = (c.tags && c.tags.length) ? c.tags.slice(0,3) : [];
   var btn = role === 'admin'
-    ? '<button class="continue-btn" onclick="manageBatchFor(\'course\',\''+c._id+'\')">Manage Students</button>'
+    ? '<div style="display:flex;gap:.4rem"><button class="continue-btn" style="background:transparent;color:var(--purple);border:1.5px solid var(--purple)" onclick="viewCourseDetail(\''+c._id+'\')">View</button><button class="continue-btn" onclick="manageBatchFor(\'course\',\''+c._id+'\')">Manage</button></div>'
     : '<button class="continue-btn" onclick="startLearning(\''+(c.title||'').replace(/[\x27"]/g,'')+'\')">View Course</button>';
   return '<div class="course-card2" data-cat="'+(c.category||'Other')+'">'+
     '<div class="cc2-head">'+
@@ -2844,7 +2898,7 @@ async function viewApplicants(id){
       var hist=(a.history&&a.history.length)?'<button class="continue-btn" style="padding:.25rem .55rem;font-size:.66rem;background:transparent;color:var(--muted);border:1.5px solid var(--line)" onclick="appHistory(\''+id+'\',\''+a._id+'\')">History ('+a.history.length+')</button>':'';
       var offer=(a.finalOffer&&a.finalOffer.ctc)?'<span style="font-size:.7rem;color:#059669;font-weight:700">&#8377;'+a.finalOffer.ctc+' LPA</span>':'';
       return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.7rem;padding:.6rem 0;border-bottom:1px solid var(--line);flex-wrap:wrap">'+
-        '<div style="min-width:0;flex:1"><div style="font-weight:600;font-size:.86rem">'+escHtml(name)+' '+offer+'</div><div style="font-size:.72rem;color:var(--muted)">'+escHtml(s.email||'')+'</div></div>'+
+        '<div style="min-width:0;flex:1"><div style="font-weight:600;font-size:.86rem">'+escHtml(name)+' '+offer+'</div><div style="font-size:.72rem;color:var(--muted)">'+escHtml(s.email||'')+((s.studentProfile&&s.studentProfile.resume)?' &bull; <a href="'+escHtml(s.studentProfile.resume)+'" target="_blank" style="color:var(--purple);font-weight:700;text-decoration:none">Resume</a>':'')+'</div></div>'+
         '<div style="display:flex;align-items:center;gap:.4rem">'+hist+'<select onchange="moveAppStage(\''+id+'\',\''+a._id+'\',this.value)" style="padding:.35rem .5rem;border:1.5px solid var(--line);border-radius:8px;font-size:.74rem;font-family:inherit;cursor:pointer">'+opts+'</select></div>'+
       '</div>';
     }).join('') : '<div style="color:var(--muted);font-size:.85rem;padding:.6rem 0">No students have applied yet.</div>';
@@ -3394,7 +3448,8 @@ async function renderProfile(role) {
       <div class="form-row">
         <div class="fg"><label>Degree</label><input id="profDegree" value="${sp.degree||''}"/></div>
         <div class="fg"><label>Graduation Year</label><input id="profGrad" value="${sp.graduationYear||''}"/></div>
-      </div>`:``}
+      </div>
+      <div class="fg" style="margin-bottom:1rem"><label>Resume Link <span style="color:var(--muted);font-weight:400">(Google Drive / PDF URL — attached when you apply to placement drives)</span></label><input id="profResume" value="${sp.resume||''}" placeholder="https://drive.google.com/…"/></div>`:``}
       <div class="fg" style="margin-bottom:1rem"><label>About Me</label><textarea id="profBio" rows="3">${u.bio||''}</textarea></div>
       <button class="save-btn" onclick="saveProfile()">Save Changes</button>
       <span id="profMsg" style="font-size:.82rem;margin-left:1rem"></span>
@@ -3410,7 +3465,11 @@ async function saveProfile() {
     phone: (document.getElementById('profPhone') || {}).value || undefined,
     bio: (document.getElementById('profBio') || {}).value || undefined
   };
-  Object.keys(body).forEach(function(k){ if(!body[k]) delete body[k]; });
+  // Student profile fields (dot-notation so we don't overwrite the whole studentProfile)
+  var _rz=document.getElementById('profResume'); if(_rz) body['studentProfile.resume']=_rz.value||'';
+  var _dg=document.getElementById('profDegree'); if(_dg && _dg.value) body['studentProfile.degree']=_dg.value;
+  var _gy=document.getElementById('profGrad'); if(_gy && _gy.value) body['studentProfile.graduationYear']=_gy.value;
+  Object.keys(body).forEach(function(k){ if(body[k]===undefined) delete body[k]; });
   try {
     if(msg){ msg.style.color='var(--muted)'; msg.textContent='Saving...'; }
     var res = await apiFetch('/users/' + (_currentUser && _currentUser._id), {
@@ -3613,7 +3672,7 @@ async function renderMentors(){
       '<div class="course-info"><div class="course-name">'+name+'</div>'+
       '<div class="course-desc">'+spec+'</div></div>'+
       '<div style="text-align:center;margin-right:.6rem"><div style="font-weight:800">'+students+'</div><div style="font-size:.7rem;color:var(--muted)">students</div></div>'+
-      '<span class="badge" style="background:var(--green-lt);color:var(--green)">'+(m.status||'active')+'</span>'+
+      '<span class="badge '+((m.status||'active')==='active'?'b-active':'b-due')+'">'+(m.status||'active')+'</span>'+
       '<button class="continue-btn" style="padding:.45rem .9rem;font-size:.74rem" onclick="manageBatchFor(\'mentor\',\''+m._id+'\')">Assign Students</button><button class="continue-btn" style="background:transparent;color:var(--purple);border:1.5px solid var(--purple)" onclick="viewEntity(\'user\',\''+m._id+'\')">View</button><button class="continue-btn" style="background:transparent;color:var(--red);border:1.5px solid var(--red)" onclick="deleteUserAccount(\''+m._id+'\',\''+(name||'').replace(/'/g,'')+'\')">Delete</button>'+
     '</div>';
   }).join('') : '<div style="padding:1.5rem;color:var(--muted)">No mentors yet.</div>';
@@ -3645,7 +3704,7 @@ async function renderBatches(role){
         '<span>&#128104;&#8205;&#127979; '+mentorName+'</span><span>'+count+'/'+(cap||'&#8734;')+' seats</span>'+
       '</div>'+
       '<div class="prog-bar"><div class="prog-fill" style="width:'+pct+'%"></div></div>'+
-      (canManage?'<div style="display:flex;gap:.5rem"><button class="continue-btn" style="flex:1;background:transparent;color:var(--purple);border:1.5px solid var(--purple)" onclick="manageBatch(\''+b._id+'\')">Manage</button><button class="continue-btn" style="flex:1" onclick="manageBatch(\''+b._id+'\')">Students</button></div>':'')+
+      (canManage?'<div style="display:flex;gap:.5rem"><button class="continue-btn" style="flex:1;background:transparent;color:var(--purple);border:1.5px solid var(--purple)" onclick="manageBatch(\''+b._id+'\')">Manage</button><button class="continue-btn" style="flex:1" onclick="batchStudents(\''+b._id+'\')">Students</button></div>':'')+
     '</div>';
   }).join('') : '<div style="padding:1.5rem;color:var(--muted)">No batches yet.</div>';
   return '<div class="section-head"><span class="section-title">Batches</span>'+addBtn+'</div>'+
@@ -3770,6 +3829,7 @@ async function renderLeads(){
       '<div class="course-desc">'+(l.email||'')+' &bull; '+(l.phone||'')+'</div></div>'+
       '<div style="font-size:.72rem;color:var(--muted);margin-right:.6rem">'+(l.courseInterestedName||l.source||'')+'</div>'+
       '<span class="badge" style="background:'+sc[0]+';color:'+sc[1]+'">'+st+'</span>'+
+      '<select onchange="updateLeadStatus(\''+l._id+'\',this.value)" style="margin-left:.6rem;padding:.35rem .5rem;border:1.5px solid var(--line);border-radius:8px;font-size:.72rem;font-family:inherit;cursor:pointer;text-transform:capitalize">'+['new','contacted','qualified','converted','lost'].map(function(_s){return '<option value="'+_s+'"'+(st===_s?' selected':'')+'>'+_s+'</option>';}).join('')+'</select>'+
       (st!=='converted' ? '<button class="continue-btn" style="margin-left:.6rem;padding:.4rem .85rem;font-size:.72rem" onclick="convertLead(\''+l._id+'\')">Convert</button>' : '<span style="margin-left:.6rem;font-size:.72rem;color:var(--green);font-weight:700">&#10003; Student</span>')+'<button class="continue-btn" style="margin-left:.4rem;padding:.4rem .7rem;font-size:.72rem;background:transparent;color:var(--red);border:1.5px solid var(--line)" onclick="deleteLead(\''+l._id+'\')">Delete</button>'+
     '</div>';
   }).join('') : '<div style="padding:1.5rem;color:var(--muted)">No leads yet.</div>';
@@ -4508,7 +4568,7 @@ async function recordPayment(){
         if(!enr.length){ toast('This student has no enrollments to bill','info'); return; }
       }
       // open step 2 after this modal auto-closes
-      setTimeout(function(){ recordPaymentStep2(enr); }, 60);
+      setTimeout(function(){ recordPaymentStep2(enr); }, 240);
     }
   });
 }
