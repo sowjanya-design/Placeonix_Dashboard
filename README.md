@@ -21,14 +21,16 @@ placement institute. Single-page frontend + Node/Express + MongoDB API.
 
 ```
 placeonix-hub/
-├── placeonix-hub-portal.html   # The dashboard app (frontend — vanilla HTML/CSS/JS, no build)
-├── placeonix-website.html      # Public marketing site
-├── manifest.json, sw.js        # PWA (installable; sw.js is network-only, no caching)
-├── _serve.js                   # Tiny static server for local dev (port 8080)
-├── vercel.json                 # Deploy config (static frontend + serverless API)
-├── package.json                # Root convenience scripts (delegate to backend)
-├── docs/                       # Setup guide, feature list, test cases, deploy guide
-└── placeonix-hub-backend/      # REST API
+├── frontend/                       # The web app (vanilla HTML/CSS/JS, no build step)
+│   ├── placeonix-hub-portal.html   #   the dashboard SPA
+│   ├── manifest.json, sw.js        #   PWA (installable; sw.js is network-only)
+│   └── assets/                     #   logos + illustration
+├── placeonix-hub-backend/          # REST API (see tree below)
+├── docs/                           # Setup guide, feature list, test cases, deploy guide
+├── _serve.js                       # Tiny static server for local dev (serves frontend/ on :8080)
+├── vercel.json                     # Deploy config (static frontend + serverless API)
+├── package.json                    # Root convenience scripts (delegate to backend)
+└── README.md
     ├── api/index.js            # Vercel serverless entrypoint
     ├── src/
     │   ├── server.js           # Local entrypoint (app.listen)

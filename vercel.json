@@ -2,20 +2,18 @@
   "version": 2,
   "builds": [
     { "src": "placeonix-hub-backend/api/index.js", "use": "@vercel/node" },
-    { "src": "placeonix-hub-portal.html", "use": "@vercel/static" },
-    { "src": "placeonix-website.html", "use": "@vercel/static" },
-    { "src": "login-illustration.svg", "use": "@vercel/static" },
-    { "src": "placeonix-logo.png", "use": "@vercel/static" },
-    { "src": "placeonix-hub-logo.PNG", "use": "@vercel/static" },
-    { "src": "manifest.json", "use": "@vercel/static" },
-    { "src": "sw.js", "use": "@vercel/static" }
+    { "src": "frontend/placeonix-hub-portal.html", "use": "@vercel/static" },
+    { "src": "frontend/manifest.json", "use": "@vercel/static" },
+    { "src": "frontend/sw.js", "use": "@vercel/static" },
+    { "src": "frontend/assets/**", "use": "@vercel/static" }
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "placeonix-hub-backend/api/index.js" },
     { "src": "/health", "dest": "placeonix-hub-backend/api/index.js" },
-    { "src": "/", "dest": "/placeonix-hub-portal.html" },
-    { "src": "/website", "dest": "/placeonix-website.html" },
+    { "src": "/", "dest": "/frontend/placeonix-hub-portal.html" },
+    { "src": "/(sw\\.js|manifest\\.json)", "dest": "/frontend/$1" },
+    { "src": "/assets/(.*)", "dest": "/frontend/assets/$1" },
     { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/placeonix-hub-portal.html" }
+    { "src": "/(.*)", "dest": "/frontend/placeonix-hub-portal.html" }
   ]
 }
