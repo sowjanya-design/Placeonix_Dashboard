@@ -1,0 +1,160 @@
+{
+  "info": {
+    "name": "Placeonix Hub API",
+    "description": "REST API for Placeonix Hub. Set {{baseUrl}} to your environment, run 'Auth > Login (Admin)' first to auto-capture {{token}}, then call protected requests. Test logins: admin@placeonix.in / mentor@placeonix.in / student@placeonix.in, all Password123.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://placeonix-dashboard.vercel.app/api/v1", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "id", "value": "", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [ { "key": "token", "value": "{{token}}", "type": "string" } ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (Admin)",
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "var j = pm.response.json();",
+              "if (j.data && j.data.accessToken) { pm.collectionVariables.set('token', j.data.accessToken); }",
+              "pm.test('login ok', function(){ pm.expect(j.success).to.be.true; });"
+            ], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "POST", "auth": { "type": "noauth" },
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@placeonix.in\",\n  \"password\": \"Password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth","login"] }
+          }
+        },
+        {
+          "name": "Login (Mentor)",
+          "event": [ { "listen": "test", "script": { "exec": ["var j=pm.response.json(); if(j.data&&j.data.accessToken){pm.collectionVariables.set('token',j.data.accessToken);}"], "type": "text/javascript" } } ],
+          "request": { "method": "POST", "auth": {"type":"noauth"}, "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"email\": \"mentor@placeonix.in\",\n  \"password\": \"Password123\"\n}"}, "url": {"raw":"{{baseUrl}}/auth/login","host":["{{baseUrl}}"],"path":["auth","login"]} }
+        },
+        {
+          "name": "Login (Student)",
+          "event": [ { "listen": "test", "script": { "exec": ["var j=pm.response.json(); if(j.data&&j.data.accessToken){pm.collectionVariables.set('token',j.data.accessToken);}"], "type": "text/javascript" } } ],
+          "request": { "method": "POST", "auth": {"type":"noauth"}, "header": [{"key":"Content-Type","value":"application/json"}], "body": {"mode":"raw","raw":"{\n  \"email\": \"student@placeonix.in\",\n  \"password\": \"Password123\"\n}"}, "url": {"raw":"{{baseUrl}}/auth/login","host":["{{baseUrl}}"],"path":["auth","login"]} }
+        },
+        { "name": "Me", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/auth/me","host":["{{baseUrl}}"],"path":["auth","me"]} } },
+        { "name": "Logout", "request": { "method": "POST", "url": {"raw":"{{baseUrl}}/auth/logout","host":["{{baseUrl}}"],"path":["auth","logout"]} } },
+        { "name": "Forgot Password", "request": { "method": "POST", "auth":{"type":"noauth"}, "header":[{"key":"Content-Type","value":"application/json"}], "body":{"mode":"raw","raw":"{\n  \"email\": \"admin@placeonix.in\"\n}"}, "url": {"raw":"{{baseUrl}}/auth/forgot-password","host":["{{baseUrl}}"],"path":["auth","forgot-password"]} } }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        { "name": "List students", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/users?role=student&limit=20","host":["{{baseUrl}}"],"path":["users"],"query":[{"key":"role","value":"student"},{"key":"limit","value":"20"}]} } },
+        { "name": "List mentors", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/users?role=mentor","host":["{{baseUrl}}"],"path":["users"],"query":[{"key":"role","value":"mentor"}]} } },
+        { "name": "Create mentor", "request": { "method": "POST", "header":[{"key":"Content-Type","value":"application/json"}], "body":{"mode":"raw","raw":"{\n  \"firstName\": \"Test\",\n  \"lastName\": \"Mentor\",\n  \"email\": \"testmentor@example.com\",\n  \"phone\": \"9000000000\",\n  \"password\": \"Password123\",\n  \"role\": \"mentor\"\n}"}, "url": {"raw":"{{baseUrl}}/users","host":["{{baseUrl}}"],"path":["users"]} } },
+        { "name": "Get user by id", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/users/{{id}}","host":["{{baseUrl}}"],"path":["users","{{id}}"]} } },
+        { "name": "Delete user", "request": { "method": "DELETE", "url": {"raw":"{{baseUrl}}/users/{{id}}","host":["{{baseUrl}}"],"path":["users","{{id}}"]} } },
+        { "name": "My stats", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/users/me/stats","host":["{{baseUrl}}"],"path":["users","me","stats"]} } },
+        { "name": "My enrollments (student)", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/users/me/enrollments","host":["{{baseUrl}}"],"path":["users","me","enrollments"]} } },
+        { "name": "Leaderboard", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/users/leaderboard","host":["{{baseUrl}}"],"path":["users","leaderboard"]} } }
+      ]
+    },
+    {
+      "name": "Courses",
+      "item": [
+        { "name": "List courses", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/courses?limit=50","host":["{{baseUrl}}"],"path":["courses"],"query":[{"key":"limit","value":"50"}]} } },
+        { "name": "Get course", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/courses/{{id}}","host":["{{baseUrl}}"],"path":["courses","{{id}}"]} } },
+        { "name": "Create course (admin)", "request": { "method": "POST", "header":[{"key":"Content-Type","value":"application/json"}], "body":{"mode":"raw","raw":"{\n  \"title\": \"Test Course\",\n  \"category\": \"Programming\",\n  \"description\": \"A test course\",\n  \"duration\": \"4-6 Months\",\n  \"fee\": { \"amount\": 0 }\n}"}, "url": {"raw":"{{baseUrl}}/courses","host":["{{baseUrl}}"],"path":["courses"]} } }
+      ]
+    },
+    {
+      "name": "Batches",
+      "item": [
+        { "name": "List batches", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/batches","host":["{{baseUrl}}"],"path":["batches"]} } },
+        { "name": "Get batch", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/batches/{{id}}","host":["{{baseUrl}}"],"path":["batches","{{id}}"]} } }
+      ]
+    },
+    {
+      "name": "Sessions",
+      "item": [
+        { "name": "List sessions", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/sessions?limit=50","host":["{{baseUrl}}"],"path":["sessions"],"query":[{"key":"limit","value":"50"}]} } },
+        { "name": "Today's sessions", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/sessions/today","host":["{{baseUrl}}"],"path":["sessions","today"]} } },
+        { "name": "Start session (mentor)", "request": { "method": "PATCH", "url": {"raw":"{{baseUrl}}/sessions/{{id}}/start","host":["{{baseUrl}}"],"path":["sessions","{{id}}","start"]} } },
+        { "name": "Complete + recording", "request": { "method": "PATCH", "header":[{"key":"Content-Type","value":"application/json"}], "body":{"mode":"raw","raw":"{\n  \"status\": \"completed\",\n  \"recordingUrl\": \"https://example.com/rec.mp4\"\n}"}, "url": {"raw":"{{baseUrl}}/sessions/{{id}}","host":["{{baseUrl}}"],"path":["sessions","{{id}}"]} } }
+      ]
+    },
+    {
+      "name": "Assignments",
+      "item": [
+        { "name": "List assignments", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/assignments?limit=50","host":["{{baseUrl}}"],"path":["assignments"],"query":[{"key":"limit","value":"50"}]} } },
+        { "name": "Submit (student)", "request": { "method": "POST", "header":[{"key":"Content-Type","value":"application/json"}], "body":{"mode":"raw","raw":"{\n  \"content\": \"My submission notes\",\n  \"githubLink\": \"https://github.com/me/repo\"\n}"}, "url": {"raw":"{{baseUrl}}/assignments/{{id}}/submit","host":["{{baseUrl}}"],"path":["assignments","{{id}}","submit"]} } }
+      ]
+    },
+    {
+      "name": "Attendance",
+      "item": [
+        { "name": "My attendance (student)", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/attendance/me","host":["{{baseUrl}}"],"path":["attendance","me"]} } },
+        { "name": "Batch attendance", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/attendance/batch/{{id}}","host":["{{baseUrl}}"],"path":["attendance","batch","{{id}}"]} } }
+      ]
+    },
+    {
+      "name": "Placements",
+      "item": [
+        { "name": "List drives", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/placements","host":["{{baseUrl}}"],"path":["placements"]} } },
+        { "name": "Create drive (admin)", "request": { "method": "POST", "header":[{"key":"Content-Type","value":"application/json"}], "body":{"mode":"raw","raw":"{\n  \"company\": \"Test Co\",\n  \"role\": \"SDE\",\n  \"package\": { \"min\": 6, \"max\": 10, \"currency\": \"INR\" },\n  \"applicationDeadline\": \"2026-12-01\",\n  \"vacancies\": 5,\n  \"workMode\": \"hybrid\",\n  \"status\": \"open\"\n}"}, "url": {"raw":"{{baseUrl}}/placements","host":["{{baseUrl}}"],"path":["placements"]} } },
+        { "name": "My applications (student)", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/placements/my/applications","host":["{{baseUrl}}"],"path":["placements","my","applications"]} } }
+      ]
+    },
+    {
+      "name": "Announcements",
+      "item": [
+        { "name": "List", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/announcements","host":["{{baseUrl}}"],"path":["announcements"]} } },
+        { "name": "Create (admin)", "request": { "method": "POST", "header":[{"key":"Content-Type","value":"application/json"}], "body":{"mode":"raw","raw":"{\n  \"title\": \"Test Notice\",\n  \"body\": \"Hello everyone\",\n  \"type\": \"general\",\n  \"priority\": \"normal\",\n  \"audience\": { \"isPublic\": true, \"roles\": [\"student\",\"mentor\"] }\n}"}, "url": {"raw":"{{baseUrl}}/announcements","host":["{{baseUrl}}"],"path":["announcements"]} } }
+      ]
+    },
+    {
+      "name": "Leads / CRM",
+      "item": [
+        { "name": "List leads (admin)", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/leads","host":["{{baseUrl}}"],"path":["leads"]} } },
+        { "name": "Create lead (public)", "request": { "method": "POST", "auth":{"type":"noauth"}, "header":[{"key":"Content-Type","value":"application/json"}], "body":{"mode":"raw","raw":"{\n  \"firstName\": \"Test\",\n  \"lastName\": \"Lead\",\n  \"email\": \"lead@example.com\",\n  \"phone\": \"9876543210\",\n  \"courseInterestedName\": \"Full Stack\",\n  \"source\": \"website\"\n}"}, "url": {"raw":"{{baseUrl}}/leads","host":["{{baseUrl}}"],"path":["leads"]} } }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        { "name": "List payments", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/payments","host":["{{baseUrl}}"],"path":["payments"]} } },
+        { "name": "My fee summary (student)", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/payments/me/summary","host":["{{baseUrl}}"],"path":["payments","me","summary"]} } }
+      ]
+    },
+    {
+      "name": "Certificates",
+      "item": [
+        { "name": "List / mine", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/certificates?limit=50","host":["{{baseUrl}}"],"path":["certificates"],"query":[{"key":"limit","value":"50"}]} } },
+        { "name": "Verify (public)", "request": { "method": "GET", "auth":{"type":"noauth"}, "url": {"raw":"{{baseUrl}}/certificates/verify/PLX-CERT-2026-00001","host":["{{baseUrl}}"],"path":["certificates","verify","PLX-CERT-2026-00001"]} } }
+      ]
+    },
+    {
+      "name": "Resources",
+      "item": [
+        { "name": "List", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/resources?limit=50","host":["{{baseUrl}}"],"path":["resources"],"query":[{"key":"limit","value":"50"}]} } }
+      ]
+    },
+    {
+      "name": "Join Requests",
+      "item": [
+        { "name": "List (mentor)", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/join-requests","host":["{{baseUrl}}"],"path":["join-requests"]} } },
+        { "name": "Create (student)", "request": { "method": "POST", "header":[{"key":"Content-Type","value":"application/json"}], "body":{"mode":"raw","raw":"{\n  \"batchId\": \"{{id}}\",\n  \"date\": \"2026-12-01\",\n  \"reason\": \"Travelling this week\"\n}"}, "url": {"raw":"{{baseUrl}}/join-requests","host":["{{baseUrl}}"],"path":["join-requests"]} } }
+      ]
+    },
+    {
+      "name": "Reviews / Analytics / Search",
+      "item": [
+        { "name": "List reviews", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/reviews?limit=50","host":["{{baseUrl}}"],"path":["reviews"],"query":[{"key":"limit","value":"50"}]} } },
+        { "name": "Analytics overview (admin)", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/analytics/overview","host":["{{baseUrl}}"],"path":["analytics","overview"]} } },
+        { "name": "Global search", "request": { "method": "GET", "url": {"raw":"{{baseUrl}}/search?q=react","host":["{{baseUrl}}"],"path":["search"],"query":[{"key":"q","value":"react"}]} } }
+      ]
+    }
+  ]
+}
