@@ -21,7 +21,7 @@ Vanilla frontend · Node/Express API · MongoDB. Deployed on Vercel + Atlas.
 | Item | Technology |
 |---|---|
 | Language | Vanilla HTML + CSS + JavaScript (no framework, no build) |
-| Entry | `frontend/placeonix-hub-portal.html` (single-file SPA) |
+| Entry | `frontend/placeonix-hub-portal.html` → `css/styles.css` + `js/*` modules |
 | API calls | Browser `fetch()` → `/api/v1` |
 | PWA | `manifest.json` + `sw.js` (network-only, installable) |
 | Local server | `_serve.js` (serves `frontend/` on :8080) |
@@ -52,7 +52,14 @@ OfficeHourSlot.
 ```
 placeonix-hub/
 ├── frontend/
-│   ├── placeonix-hub-portal.html   # dashboard SPA
+│   ├── placeonix-hub-portal.html   # HTML shell (links css + js below)
+│   ├── css/styles.css              # all styling
+│   ├── js/                         # app logic, split into ordered modules:
+│   │   ├── core.js                 #   config, state, auth, nav, helpers (loads first)
+│   │   ├── learning.js             #   dashboard, courses, my-learning, attendance, placements
+│   │   ├── workflows.js            #   assessments, gamification, enrollment, join-requests, chat
+│   │   ├── ui.js                   #   toast/modal framework, CSV export, notifications
+│   │   └── entities.js             #   CRUD: users, leads, batches, courses, sessions, …
 │   ├── manifest.json, sw.js        # PWA
 │   └── assets/                     # logos, illustration
 ├── placeonix-hub-backend/

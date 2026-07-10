@@ -22,7 +22,10 @@ placement institute. Single-page frontend + Node/Express + MongoDB API.
 ```
 placeonix-hub/
 ├── frontend/                       # The web app (vanilla HTML/CSS/JS, no build step)
-│   ├── placeonix-hub-portal.html   #   the dashboard SPA
+│   ├── placeonix-hub-portal.html   #   HTML shell
+│   ├── css/styles.css              #   all styling
+│   ├── js/                         #   app logic in ordered modules (core → learning →
+│   │                               #   workflows → ui → entities); core.js loads first
 │   ├── manifest.json, sw.js        #   PWA (installable; sw.js is network-only)
 │   └── assets/                     #   logos + illustration
 ├── placeonix-hub-backend/          # REST API (see tree below)
