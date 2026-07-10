@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Batch model.
+ * A cohort of students taking a course under a mentor, with capacity, schedule and
+ * mode (online/offline/hybrid).
+ */
 const mongoose = require('mongoose');
 const { BATCH_STATUS, MAX_BATCH_SIZE } = require('../config/constants');
 
@@ -49,14 +54,17 @@ const batchSchema = new mongoose.Schema(
 batchSchema.index({ course: 1, status: 1 });
 batchSchema.index({ startDate: 1 });
 
+/** Virtual: remaining seats (capacity minus enrolled). */
 batchSchema.virtual('availableSeats').get(function () {
   return Math.max(0, this.capacity - this.enrolledCount);
 });
 
+/** Virtual: whether the batch has reached capacity. */
 batchSchema.virtual('isFull').get(function () {
   return this.enrolledCount >= this.capacity;
 });
 
+/** Before validation: reject an end date that isn't after the start date. */
 batchSchema.pre('validate', function (next) {
   if (this.endDate <= this.startDate) {
     return next(new Error('End date must be after start date'));

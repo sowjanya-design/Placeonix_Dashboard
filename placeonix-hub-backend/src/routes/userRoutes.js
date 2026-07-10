@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — User routes (/api/v1/users).
+ * User CRUD + roles, plus 'me' endpoints (stats, enrollments, progress) and the
+ * leaderboard. Protected; admin-only where appropriate.
+ */
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');

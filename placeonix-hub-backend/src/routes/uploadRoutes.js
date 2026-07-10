@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Upload routes (/api/v1/uploads).
+ * Multipart file upload endpoint backed by the upload service.
+ */
 const express = require('express');
 const router = express.Router();
 const path = require('path');

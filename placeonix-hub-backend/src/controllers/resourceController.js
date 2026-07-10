@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Resource controller.
+ * CRUD for learning resources plus download/open tracking.
+ */
 const Resource = require('../models/Resource');
 const Enrollment = require('../models/Enrollment');
 const AppError = require('../utils/AppError');
@@ -8,6 +12,7 @@ const path = require('path');
 
 // @desc   List resources (filtered by access)
 // @route  GET /api/v1/resources
+/** List learning resources. */
 exports.listResources = asyncHandler(async (req, res) => {
   const { course, batch, type, search, page = 1, limit = 20 } = req.query;
   const filter = {};
@@ -45,6 +50,7 @@ exports.listResources = asyncHandler(async (req, res) => {
 
 // @desc   Get single resource
 // @route  GET /api/v1/resources/:id
+/** Get one resource. */
 exports.getResource = asyncHandler(async (req, res, next) => {
   const resource = await Resource.findByIdAndUpdate(
     req.params.id,
@@ -58,6 +64,7 @@ exports.getResource = asyncHandler(async (req, res, next) => {
 
 // @desc   Upload resource (mentor / admin)
 // @route  POST /api/v1/resources
+/** Add a learning resource. */
 exports.createResource = asyncHandler(async (req, res, next) => {
   let fileData = {};
   if (req.file) {
@@ -92,6 +99,7 @@ exports.createResource = asyncHandler(async (req, res, next) => {
 
 // @desc   Update resource
 // @route  PATCH /api/v1/resources/:id
+/** Update a resource. */
 exports.updateResource = asyncHandler(async (req, res, next) => {
   const resource = await Resource.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
@@ -103,6 +111,7 @@ exports.updateResource = asyncHandler(async (req, res, next) => {
 
 // @desc   Delete resource
 // @route  DELETE /api/v1/resources/:id
+/** Delete a resource. */
 exports.deleteResource = asyncHandler(async (req, res, next) => {
   const resource = await Resource.findById(req.params.id);
   if (!resource) return next(new AppError('Resource not found', 404));
@@ -120,6 +129,7 @@ exports.deleteResource = asyncHandler(async (req, res, next) => {
 
 // @desc   Track download
 // @route  POST /api/v1/resources/:id/download
+/** Record a resource download/open and return its URL. */
 exports.trackDownload = asyncHandler(async (req, res, next) => {
   const resource = await Resource.findByIdAndUpdate(
     req.params.id,

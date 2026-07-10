@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Notification model.
+ * A per-user in-app notification with a title/message, type and read flag.
+ */
 const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema(

@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Auth middleware.
+ * protect (require a valid JWT + load the user), authorize (restrict to roles), and
+ * ownerOrAdmin (allow the resource owner or an admin).
+ */
 const { verifyToken } = require('../utils/jwt');
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
@@ -7,6 +12,7 @@ const asyncHandler = require('../utils/asyncHandler');
  * Verifies JWT and attaches user to request.
  * Reads token from Authorization header or httpOnly cookie.
  */
+/** Require a valid JWT; load the user onto req.user or reject with 401. */
 const protect = asyncHandler(async (req, res, next) => {
   let token;
 
@@ -46,6 +52,7 @@ const protect = asyncHandler(async (req, res, next) => {
  * Role-based access control.
  * Usage: router.get('/', protect, authorize('admin', 'mentor'), handler)
  */
+/** Restrict a route to one or more roles (used after protect). */
 const authorize = (...roles) => (req, res, next) => {
   if (!req.user) return next(new AppError('Not authenticated', 401));
   if (!roles.includes(req.user.role)) {
@@ -60,6 +67,7 @@ const authorize = (...roles) => (req, res, next) => {
  * Allow only the resource owner OR admin.
  * Expects req.params.userId or req.params.id to match req.user._id
  */
+/** Allow the resource owner (matched by a route param) or any admin. */
 const ownerOrAdmin = (paramKey = 'id') => (req, res, next) => {
   const targetId = req.params[paramKey];
   if (req.user.role === 'admin') return next();

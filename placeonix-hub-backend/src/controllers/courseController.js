@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Course controller.
+ * CRUD for courses and their nested modules/topics, plus publish toggling.
+ */
 const Course = require('../models/Course');
 const AppError = require('../utils/AppError');
 const ApiResponse = require('../utils/ApiResponse');
@@ -5,6 +9,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   List courses (public)
 // @route  GET /api/v1/courses
+/** List courses (supports filters such as isPublished/category). */
 exports.listCourses = asyncHandler(async (req, res) => {
   const {
     category, level, isPublished, isFeatured, search,
@@ -35,6 +40,7 @@ exports.listCourses = asyncHandler(async (req, res) => {
 
 // @desc   Get course by id or slug
 // @route  GET /api/v1/courses/:id
+/** Get one course with its modules and topics. */
 exports.getCourse = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
@@ -50,6 +56,7 @@ exports.getCourse = asyncHandler(async (req, res, next) => {
 
 // @desc   Create course (admin)
 // @route  POST /api/v1/courses
+/** Create a course. */
 exports.createCourse = asyncHandler(async (req, res) => {
   const course = await Course.create({
     ...req.body,
@@ -60,6 +67,7 @@ exports.createCourse = asyncHandler(async (req, res) => {
 
 // @desc   Update course (admin)
 // @route  PATCH /api/v1/courses/:id
+/** Update a course. */
 exports.updateCourse = asyncHandler(async (req, res, next) => {
   const course = await Course.findByIdAndUpdate(
     req.params.id,
@@ -72,6 +80,7 @@ exports.updateCourse = asyncHandler(async (req, res, next) => {
 
 // @desc   Delete course (admin)
 // @route  DELETE /api/v1/courses/:id
+/** Delete a course. */
 exports.deleteCourse = asyncHandler(async (req, res, next) => {
   const course = await Course.findByIdAndDelete(req.params.id);
   if (!course) return next(new AppError('Course not found', 404));
@@ -82,6 +91,7 @@ exports.deleteCourse = asyncHandler(async (req, res, next) => {
 
 // @desc   Add module to course
 // @route  POST /api/v1/courses/:id/modules
+/** Add a module to a course. */
 exports.addModule = asyncHandler(async (req, res, next) => {
   const course = await Course.findById(req.params.id);
   if (!course) return next(new AppError('Course not found', 404));
@@ -100,6 +110,7 @@ exports.addModule = asyncHandler(async (req, res, next) => {
 
 // @desc   Update module
 // @route  PATCH /api/v1/courses/:id/modules/:moduleId
+/** Update a course module. */
 exports.updateModule = asyncHandler(async (req, res, next) => {
   const course = await Course.findById(req.params.id);
   if (!course) return next(new AppError('Course not found', 404));
@@ -116,6 +127,7 @@ exports.updateModule = asyncHandler(async (req, res, next) => {
 
 // @desc   Delete module
 // @route  DELETE /api/v1/courses/:id/modules/:moduleId
+/** Delete a course module. */
 exports.deleteModule = asyncHandler(async (req, res, next) => {
   const course = await Course.findById(req.params.id);
   if (!course) return next(new AppError('Course not found', 404));
@@ -129,6 +141,7 @@ exports.deleteModule = asyncHandler(async (req, res, next) => {
 
 // @desc   Reorder modules
 // @route  PATCH /api/v1/courses/:id/modules/reorder
+/** Reorder a course's modules. */
 exports.reorderModules = asyncHandler(async (req, res, next) => {
   const { order } = req.body; // array of moduleIds in new order
   const course = await Course.findById(req.params.id);
@@ -148,6 +161,7 @@ exports.reorderModules = asyncHandler(async (req, res, next) => {
 
 // @desc   Add topic to module
 // @route  POST /api/v1/courses/:id/modules/:moduleId/topics
+/** Add a topic to a module. */
 exports.addTopic = asyncHandler(async (req, res, next) => {
   const course = await Course.findById(req.params.id);
   if (!course) return next(new AppError('Course not found', 404));
@@ -164,6 +178,7 @@ exports.addTopic = asyncHandler(async (req, res, next) => {
 
 // @desc   Update topic
 // @route  PATCH /api/v1/courses/:id/modules/:moduleId/topics/:topicId
+/** Update a topic. */
 exports.updateTopic = asyncHandler(async (req, res, next) => {
   const course = await Course.findById(req.params.id);
   if (!course) return next(new AppError('Course not found', 404));
@@ -182,6 +197,7 @@ exports.updateTopic = asyncHandler(async (req, res, next) => {
 
 // @desc   Delete topic
 // @route  DELETE /api/v1/courses/:id/modules/:moduleId/topics/:topicId
+/** Delete a topic. */
 exports.deleteTopic = asyncHandler(async (req, res, next) => {
   const course = await Course.findById(req.params.id);
   if (!course) return next(new AppError('Course not found', 404));
@@ -197,6 +213,7 @@ exports.deleteTopic = asyncHandler(async (req, res, next) => {
 
 // @desc   Toggle publish status
 // @route  PATCH /api/v1/courses/:id/publish
+/** Publish or unpublish a course. */
 exports.togglePublish = asyncHandler(async (req, res, next) => {
   const course = await Course.findById(req.params.id);
   if (!course) return next(new AppError('Course not found', 404));

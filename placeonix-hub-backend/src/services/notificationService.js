@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Notification service.
+ * Helper for creating in-app notifications (single or bulk/broadcast) used across
+ * the controllers.
+ */
 const Notification = require('../models/Notification');
 const logger = require('../utils/logger');
 
@@ -6,6 +11,7 @@ const logger = require('../utils/logger');
  * Use for in-app notifications. Emails handled separately by emailService.
  */
 class NotificationService {
+  /** Create an in-app notification via Notification.notify; logs and swallows errors so it never breaks the caller. */
   static async send(options) {
     try {
       return await Notification.notify(options);
@@ -14,6 +20,7 @@ class NotificationService {
     }
   }
 
+  /** Notify a batch's students that a new assignment was posted. */
   static async notifyAssignmentCreated(students, assignment, batch) {
     return this.send({
       recipient: students.map((s) => s._id || s),
@@ -27,6 +34,7 @@ class NotificationService {
     });
   }
 
+  /** Notify a student that their submission has been graded. */
   static async notifyAssignmentReviewed(studentId, assignment, score) {
     return this.send({
       recipient: studentId,
@@ -39,6 +47,7 @@ class NotificationService {
     });
   }
 
+  /** Notify recipients about a new announcement. */
   static async notifyAnnouncement(recipients, announcement) {
     return this.send({
       recipient: recipients,
@@ -52,6 +61,7 @@ class NotificationService {
     });
   }
 
+  /** Notify students about a new placement drive. */
   static async notifyPlacementDrive(students, drive) {
     return this.send({
       recipient: students,
@@ -65,6 +75,7 @@ class NotificationService {
     });
   }
 
+  /** Notify a student that their enrollment is confirmed. */
   static async notifyEnrollment(studentId, course, batch) {
     return this.send({
       recipient: studentId,
@@ -76,6 +87,7 @@ class NotificationService {
     });
   }
 
+  /** Warn a student that their attendance has dropped too low. */
   static async notifyAttendanceWarning(studentId, percentage) {
     return this.send({
       recipient: studentId,
@@ -87,6 +99,7 @@ class NotificationService {
     });
   }
 
+  /** Remind a student about outstanding fees. */
   static async notifyFeeReminder(studentId, dueAmount, dueDate) {
     return this.send({
       recipient: studentId,

@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Enrollment model.
+ * Links a student to a course and batch; tracks module progress, fee ledger and
+ * overall status.
+ */
 const mongoose = require('mongoose');
 const { ENROLLMENT_STATUS } = require('../config/constants');
 
@@ -64,6 +69,7 @@ const enrollmentSchema = new mongoose.Schema(
 enrollmentSchema.index({ student: 1, batch: 1 }, { unique: true });
 enrollmentSchema.index({ status: 1, batch: 1 });
 
+/** Virtual: whether the full course fee has been paid. */
 enrollmentSchema.virtual('isPaidFull').get(function () {
   return this.fee.paid >= this.fee.total;
 });

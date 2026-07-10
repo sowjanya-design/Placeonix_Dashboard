@@ -1,3 +1,9 @@
+/*
+ * Placeonix Hub — Cron service.
+ * Scheduled background jobs (node-cron): fee reminders, attendance warnings,
+ * overdue-assignment nudges, session status transitions, notification cleanup and
+ * assignment reminders. initJobs() wires them up at startup.
+ */
 const cron = require('node-cron');
 const logger = require('../utils/logger');
 const Notification = require('../models/Notification');
@@ -13,6 +19,7 @@ const NotificationService = require('../services/notificationService');
  */
 
 // Job: Send fee reminders to students with outstanding dues (daily at 10 AM)
+/** Daily: remind students with outstanding fees. */
 const feeReminderJob = () => {
   cron.schedule('0 10 * * *', async () => {
     logger.info('[CRON] Running fee reminder job...');
@@ -36,6 +43,7 @@ const feeReminderJob = () => {
 };
 
 // Job: Check student attendance and warn if below 75% (daily at 8 PM)
+/** Daily: warn students whose attendance has dropped too low. */
 const attendanceWarningJob = () => {
   cron.schedule('0 20 * * *', async () => {
     logger.info('[CRON] Running attendance warning job...');
@@ -66,6 +74,7 @@ const attendanceWarningJob = () => {
 };
 
 // Job: Mark overdue assignments (every hour)
+/** Daily: flag/notify on assignments past their due date. */
 const overdueAssignmentJob = () => {
   cron.schedule('0 * * * *', async () => {
     try {
@@ -83,6 +92,7 @@ const overdueAssignmentJob = () => {
 };
 
 // Job: Update session status — mark live/completed (every 5 minutes)
+/** Frequently: advance session status (scheduled → live → completed) by time. */
 const sessionStatusJob = () => {
   cron.schedule('*/5 * * * *', async () => {
     try {
@@ -104,6 +114,7 @@ const sessionStatusJob = () => {
 };
 
 // Job: Cleanup old notifications (older than 60 days, weekly Sunday 3 AM)
+/** Periodically: delete old, read notifications to keep the collection small. */
 const cleanupNotificationsJob = () => {
   cron.schedule('0 3 * * 0', async () => {
     logger.info('[CRON] Running notification cleanup...');
@@ -121,6 +132,7 @@ const cleanupNotificationsJob = () => {
 };
 
 // Job: Send reminders for assignments due tomorrow (daily 6 PM)
+/** Daily: remind students of assignments due soon. */
 const assignmentReminderJob = () => {
   cron.schedule('0 18 * * *', async () => {
     logger.info('[CRON] Running assignment reminder job...');
@@ -157,6 +169,7 @@ const assignmentReminderJob = () => {
   });
 };
 
+/** Register all cron jobs at server startup (skipped on serverless). */
 const initJobs = () => {
   if (process.env.DISABLE_CRON === 'true') {
     logger.info('Cron jobs disabled via DISABLE_CRON');

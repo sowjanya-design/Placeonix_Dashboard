@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Payment controller.
+ * Record and manage fee payments, including student self-pay and fee summaries.
+ */
 const Payment = require('../models/Payment');
 const Enrollment = require('../models/Enrollment');
 const AppError = require('../utils/AppError');
@@ -6,6 +10,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   Student pays their own fees (simulated gateway — no Razorpay yet)
 // @route  POST /api/v1/payments/me/pay
+/** Student records a fee payment against their own account. */
 exports.payMyFees = asyncHandler(async (req, res, next) => {
   const { enrollmentId } = req.body;
   let amount = Number(req.body.amount);
@@ -52,6 +57,7 @@ exports.payMyFees = asyncHandler(async (req, res, next) => {
 
 // @desc   List payments (admin)
 // @route  GET /api/v1/payments
+/** List payments (role-scoped). */
 exports.listPayments = asyncHandler(async (req, res) => {
   const { status, method, student, from, to, page = 1, limit = 20 } = req.query;
   const filter = {};
@@ -81,6 +87,7 @@ exports.listPayments = asyncHandler(async (req, res) => {
 
 // @desc   Get payment / invoice
 // @route  GET /api/v1/payments/:id
+/** Get one payment. */
 exports.getPayment = asyncHandler(async (req, res, next) => {
   const payment = await Payment.findById(req.params.id)
     .populate('student enrollment receivedBy');
@@ -99,6 +106,7 @@ exports.getPayment = asyncHandler(async (req, res, next) => {
 
 // @desc   Record payment (admin)
 // @route  POST /api/v1/payments
+/** Admin records a payment for a student's enrollment. */
 exports.recordPayment = asyncHandler(async (req, res, next) => {
   const { enrollmentId, amount, method, transactionId, notes } = req.body;
 
@@ -134,6 +142,7 @@ exports.recordPayment = asyncHandler(async (req, res, next) => {
 
 // @desc   Update payment status
 // @route  PATCH /api/v1/payments/:id
+/** Update a payment record. */
 exports.updatePayment = asyncHandler(async (req, res, next) => {
   const payment = await Payment.findByIdAndUpdate(req.params.id, req.body, { new: true });
   if (!payment) return next(new AppError('Payment not found', 404));
@@ -142,6 +151,7 @@ exports.updatePayment = asyncHandler(async (req, res, next) => {
 
 // @desc   Refund payment
 // @route  POST /api/v1/payments/:id/refund
+/** Refund a payment. */
 exports.refundPayment = asyncHandler(async (req, res, next) => {
   const payment = await Payment.findById(req.params.id);
   if (!payment) return next(new AppError('Payment not found', 404));
@@ -167,6 +177,7 @@ exports.refundPayment = asyncHandler(async (req, res, next) => {
 
 // @desc   My fee summary (student)
 // @route  GET /api/v1/payments/me/summary
+/** The current student's fee summary (total, paid, due). */
 exports.mySummary = asyncHandler(async (req, res) => {
   const enrollments = await Enrollment.find({ student: req.user._id })
     .populate('course', 'title fee')

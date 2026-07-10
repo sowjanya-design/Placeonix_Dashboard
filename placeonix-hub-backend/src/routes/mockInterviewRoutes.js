@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Mock-interview routes (/api/v1/mock-interviews).
+ * Schedule mock interviews and record feedback.
+ */
 const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');

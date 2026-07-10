@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Alumni model.
+ * A placed-student success story: name, company, role, package, testimonial and a
+ * 'featured' flag for the showcase.
+ */
 const mongoose = require('mongoose');
 
 const alumniSchema = new mongoose.Schema(

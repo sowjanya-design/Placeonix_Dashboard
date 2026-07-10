@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Batch controller.
+ * CRUD for batches plus enrolling/unenrolling students.
+ */
 const Batch = require('../models/Batch');
 const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
@@ -9,6 +13,7 @@ const { MAX_BATCH_SIZE } = require('../config/constants');
 
 // @desc   List batches
 // @route  GET /api/v1/batches
+/** List batches. */
 exports.listBatches = asyncHandler(async (req, res) => {
   const { status, course, mentor, page = 1, limit = 20, sort = '-startDate' } = req.query;
 
@@ -46,6 +51,7 @@ exports.listBatches = asyncHandler(async (req, res) => {
 
 // @desc   Get batch with students
 // @route  GET /api/v1/batches/:id
+/** Get one batch with its enrollments. */
 exports.getBatch = asyncHandler(async (req, res, next) => {
   const batch = await Batch.findById(req.params.id)
     .populate('course')
@@ -66,6 +72,7 @@ exports.getBatch = asyncHandler(async (req, res, next) => {
 
 // @desc   Create batch
 // @route  POST /api/v1/batches
+/** Create a batch. */
 exports.createBatch = asyncHandler(async (req, res, next) => {
   const course = await Course.findById(req.body.course);
   if (!course) return next(new AppError('Course not found', 404));
@@ -83,6 +90,7 @@ exports.createBatch = asyncHandler(async (req, res, next) => {
 
 // @desc   Update batch
 // @route  PATCH /api/v1/batches/:id
+/** Update a batch. */
 exports.updateBatch = asyncHandler(async (req, res, next) => {
   const batch = await Batch.findByIdAndUpdate(
     req.params.id,
@@ -95,6 +103,7 @@ exports.updateBatch = asyncHandler(async (req, res, next) => {
 
 // @desc   Delete batch
 // @route  DELETE /api/v1/batches/:id
+/** Delete a batch. */
 exports.deleteBatch = asyncHandler(async (req, res, next) => {
   const batch = await Batch.findById(req.params.id);
   if (!batch) return next(new AppError('Batch not found', 404));
@@ -110,6 +119,7 @@ exports.deleteBatch = asyncHandler(async (req, res, next) => {
 
 // @desc   Enroll student to batch
 // @route  POST /api/v1/batches/:id/enroll
+/** Enroll a student into a batch — also links them to its course and mentor. */
 exports.enrollStudent = asyncHandler(async (req, res, next) => {
   const { studentId, fee } = req.body;
   const batch = await Batch.findById(req.params.id).populate('course');
@@ -144,6 +154,7 @@ exports.enrollStudent = asyncHandler(async (req, res, next) => {
 
 // @desc   Unenroll student
 // @route  DELETE /api/v1/batches/:id/enroll/:studentId
+/** Remove a student from a batch (and its course enrollment). */
 exports.unenrollStudent = asyncHandler(async (req, res, next) => {
   const enrollment = await Enrollment.findOne({
     batch: req.params.id,

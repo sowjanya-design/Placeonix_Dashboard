@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Alumni routes (/api/v1/alumni).
+ * Alumni success-story CRUD.
+ */
 const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');

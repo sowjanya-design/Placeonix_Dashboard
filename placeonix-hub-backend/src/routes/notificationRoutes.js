@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Notification routes (/api/v1/notifications).
+ * List, unread count, mark read / read-all, delete and clear — all for the current user.
+ */
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/notificationController');

@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Assignment controller.
+ * The assessment lifecycle: publish assignments, student submissions, and
+ * mentor review/grading.
+ */
 const Assignment = require('../models/Assignment');
 const Batch = require('../models/Batch');
 const Enrollment = require('../models/Enrollment');
@@ -8,6 +13,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   List assignments (role-aware)
 // @route  GET /api/v1/assignments
+/** List assignments scoped to the caller's role/batches. */
 exports.listAssignments = asyncHandler(async (req, res) => {
   const { batch, course, status, page = 1, limit = 20 } = req.query;
   const filter = {};
@@ -40,6 +46,7 @@ exports.listAssignments = asyncHandler(async (req, res) => {
 
 // @desc   Get assignment
 // @route  GET /api/v1/assignments/:id
+/** Get one assignment together with its submissions. */
 exports.getAssignment = asyncHandler(async (req, res, next) => {
   const assignment = await Assignment.findById(req.params.id)
     .populate('course batch createdBy')
@@ -62,6 +69,7 @@ exports.getAssignment = asyncHandler(async (req, res, next) => {
 
 // @desc   Create assignment (mentor or admin)
 // @route  POST /api/v1/assignments
+/** Create and publish an assignment. */
 exports.createAssignment = asyncHandler(async (req, res) => {
   const assignment = await Assignment.create({
     ...req.body,
@@ -72,6 +80,7 @@ exports.createAssignment = asyncHandler(async (req, res) => {
 
 // @desc   Update assignment
 // @route  PATCH /api/v1/assignments/:id
+/** Update an assignment. */
 exports.updateAssignment = asyncHandler(async (req, res, next) => {
   const assignment = await Assignment.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
@@ -83,6 +92,7 @@ exports.updateAssignment = asyncHandler(async (req, res, next) => {
 
 // @desc   Delete assignment
 // @route  DELETE /api/v1/assignments/:id
+/** Delete an assignment and all its submissions. */
 exports.deleteAssignment = asyncHandler(async (req, res, next) => {
   const assignment = await Assignment.findByIdAndDelete(req.params.id);
   if (!assignment) return next(new AppError('Assignment not found', 404));
@@ -91,6 +101,7 @@ exports.deleteAssignment = asyncHandler(async (req, res, next) => {
 
 // @desc   Submit assignment (student)
 // @route  POST /api/v1/assignments/:id/submit
+/** Student submits (or resubmits) work for an assignment. */
 exports.submitAssignment = asyncHandler(async (req, res, next) => {
   const assignment = await Assignment.findById(req.params.id);
   if (!assignment) return next(new AppError('Assignment not found', 404));
@@ -133,6 +144,7 @@ exports.submitAssignment = asyncHandler(async (req, res, next) => {
 
 // @desc   Review submission (mentor/admin)
 // @route  POST /api/v1/assignments/:id/submissions/:submissionId/review
+/** Mentor scores and gives feedback on a student's submission. */
 exports.reviewSubmission = asyncHandler(async (req, res, next) => {
   const { score, grade, feedback } = req.body;
   const assignment = await Assignment.findById(req.params.id);

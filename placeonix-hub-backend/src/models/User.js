@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — User model.
+ * The account for every role (admin/mentor/student) with role-specific sub-profiles.
+ * Handles password hashing on save, password comparison, and login-attempt lockout.
+ */
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const { ROLES, USER_STATUS } = require('../config/constants');
@@ -77,10 +82,12 @@ userSchema.index({ email: 1, role: 1 });
 userSchema.index({ status: 1 });
 userSchema.index({ 'studentProfile.enrollmentId': 1 });
 
+/** Virtual: the user's full name (first + last). */
 userSchema.virtual('fullName').get(function () {
   return `${this.firstName} ${this.lastName}`;
 });
 
+/** Virtual: whether the account is currently locked out from failed logins. */
 userSchema.virtual('isLocked').get(function () {
   return this.lockUntil && this.lockUntil > Date.now();
 });
@@ -127,10 +134,12 @@ userSchema.pre('save', async function (next) {
   next();
 });
 
+/** Compare a plaintext password against the stored bcrypt hash. */
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };
 
+/** Bump the failed-login counter; lock the account for 30 minutes after 5 failures. */
 userSchema.methods.incrementLoginAttempts = async function () {
   if (this.lockUntil && this.lockUntil < Date.now()) {
     this.loginAttempts = 1;
@@ -144,6 +153,7 @@ userSchema.methods.incrementLoginAttempts = async function () {
   await this.save();
 };
 
+/** Clear failed-login state and stamp lastLogin after a successful login. */
 userSchema.methods.resetLoginAttempts = async function () {
   this.loginAttempts = 0;
   this.lockUntil = undefined;

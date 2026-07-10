@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Placement routes (/api/v1/placements).
+ * Drive CRUD, student apply, application-stage updates, analytics and my-applications.
+ */
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/placementController');

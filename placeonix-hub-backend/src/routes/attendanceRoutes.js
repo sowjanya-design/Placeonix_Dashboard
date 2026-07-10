@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Attendance routes (/api/v1/attendance).
+ * Mark attendance, day overview, and read per batch / per student / self.
+ */
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/attendanceController');

@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Session model.
+ * A live class: batch, instructor, schedule, mode, meeting link, status and
+ * recording URL.
+ */
 const mongoose = require('mongoose');
 
 const sessionSchema = new mongoose.Schema(
@@ -42,6 +47,7 @@ const sessionSchema = new mongoose.Schema(
 
 sessionSchema.index({ batch: 1, startTime: 1 });
 
+/** Before save: compute the session duration in minutes from start/end times. */
 sessionSchema.pre('save', function (next) {
   if (this.startTime && this.endTime) {
     this.duration = Math.round((this.endTime - this.startTime) / 60000);
@@ -49,10 +55,12 @@ sessionSchema.pre('save', function (next) {
   next();
 });
 
+/** Virtual: whether the session is scheduled in the future. */
 sessionSchema.virtual('isUpcoming').get(function () {
   return this.startTime > new Date();
 });
 
+/** Virtual: whether the session is happening right now. */
 sessionSchema.virtual('isLive').get(function () {
   const now = new Date();
   return now >= this.startTime && now <= this.endTime;

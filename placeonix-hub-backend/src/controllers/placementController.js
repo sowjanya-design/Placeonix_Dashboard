@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Placement controller.
+ * Placement drives, student applications and the hiring-stage pipeline.
+ */
 const PlacementDrive = require('../models/PlacementDrive');
 const Enrollment = require('../models/Enrollment');
 const AppError = require('../utils/AppError');
@@ -6,6 +10,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   List placement drives
 // @route  GET /api/v1/placements
+/** List placement drives. */
 exports.listDrives = asyncHandler(async (req, res) => {
   const { status, page = 1, limit = 20 } = req.query;
   const filter = {};
@@ -34,6 +39,7 @@ exports.listDrives = asyncHandler(async (req, res) => {
 
 // @desc   Get drive
 // @route  GET /api/v1/placements/:id
+/** Get one drive with its applications. */
 exports.getDrive = asyncHandler(async (req, res, next) => {
   const drive = await PlacementDrive.findById(req.params.id)
     .populate('eligibleCourses')
@@ -44,6 +50,7 @@ exports.getDrive = asyncHandler(async (req, res, next) => {
 
 // @desc   Create drive (admin)
 // @route  POST /api/v1/placements
+/** Publish a placement drive. */
 exports.createDrive = asyncHandler(async (req, res) => {
   const drive = await PlacementDrive.create({ ...req.body, createdBy: req.user._id });
   return ApiResponse.created(res, 'Drive created', { drive });
@@ -51,6 +58,7 @@ exports.createDrive = asyncHandler(async (req, res) => {
 
 // @desc   Update drive
 // @route  PATCH /api/v1/placements/:id
+/** Update a placement drive. */
 exports.updateDrive = asyncHandler(async (req, res, next) => {
   const drive = await PlacementDrive.findByIdAndUpdate(req.params.id, req.body, { new: true });
   if (!drive) return next(new AppError('Drive not found', 404));
@@ -59,6 +67,7 @@ exports.updateDrive = asyncHandler(async (req, res, next) => {
 
 // @desc   Delete drive
 // @route  DELETE /api/v1/placements/:id
+/** Delete a placement drive. */
 exports.deleteDrive = asyncHandler(async (req, res, next) => {
   const drive = await PlacementDrive.findByIdAndDelete(req.params.id);
   if (!drive) return next(new AppError('Drive not found', 404));
@@ -67,6 +76,7 @@ exports.deleteDrive = asyncHandler(async (req, res, next) => {
 
 // @desc   Apply to drive (student)
 // @route  POST /api/v1/placements/:id/apply
+/** Student applies to a placement drive. */
 exports.applyToDrive = asyncHandler(async (req, res, next) => {
   const drive = await PlacementDrive.findById(req.params.id);
   if (!drive) return next(new AppError('Drive not found', 404));
@@ -95,6 +105,7 @@ exports.applyToDrive = asyncHandler(async (req, res, next) => {
 
 // @desc   Update application status (admin)
 // @route  PATCH /api/v1/placements/:id/applications/:appId
+/** Move an applicant to a new stage / record their final offer. */
 exports.updateApplication = asyncHandler(async (req, res, next) => {
   const drive = await PlacementDrive.findById(req.params.id);
   if (!drive) return next(new AppError('Drive not found', 404));
@@ -119,6 +130,7 @@ exports.updateApplication = asyncHandler(async (req, res, next) => {
 
 // @desc   Placement analytics (funnel, rate, packages, by-course)
 // @route  GET /api/v1/placements/analytics
+/** Placement funnel and by-course analytics. */
 exports.placementAnalytics = asyncHandler(async (req, res) => {
   const Enrollment = require('../models/Enrollment');
   const drives = await PlacementDrive.find();
@@ -172,6 +184,7 @@ exports.placementAnalytics = asyncHandler(async (req, res) => {
 
 // @desc   My applications (student)
 // @route  GET /api/v1/placements/my/applications
+/** The current student's drive applications. */
 exports.myApplications = asyncHandler(async (req, res) => {
   const drives = await PlacementDrive.find({
     'applications.student': req.user._id,

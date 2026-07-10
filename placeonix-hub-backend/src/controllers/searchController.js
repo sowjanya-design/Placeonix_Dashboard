@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Search controller.
+ * A single global search across the main entities, used by the topbar search box.
+ */
 const User = require('../models/User');
 const Course = require('../models/Course');
 const Batch = require('../models/Batch');
@@ -7,6 +11,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   Global search across students, mentors, courses, batches, drives
 // @route  GET /api/v1/search?q=
+/** Global topbar search across students, mentors, courses, batches and drives. */
 exports.globalSearch = asyncHandler(async (req, res) => {
   const q = (req.query.q || '').trim();
   if (q.length < 2) return ApiResponse.success(res, 200, 'Search', { results: [] });

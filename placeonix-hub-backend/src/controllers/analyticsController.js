@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Analytics controller.
+ * Read-only aggregate reports for the admin dashboard: KPI overview, monthly
+ * enrollments, course distribution, placement stats and revenue.
+ */
 const User = require('../models/User');
 const Course = require('../models/Course');
 const Batch = require('../models/Batch');
@@ -9,6 +14,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   Admin dashboard overview
 // @route  GET /api/v1/analytics/overview
+/** Institute-wide KPI overview — students, mentors, courses, batches, enrollments, placements and new leads. */
 exports.overview = asyncHandler(async (req, res) => {
   const [
     totalStudents, activeStudents, totalMentors,
@@ -45,6 +51,7 @@ exports.overview = asyncHandler(async (req, res) => {
 
 // @desc   Monthly enrollment trends
 // @route  GET /api/v1/analytics/enrollments/monthly?year=2025
+/** Enrollment counts per month for the current year (feeds the dashboard bar chart). */
 exports.monthlyEnrollments = asyncHandler(async (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
   const data = await Enrollment.aggregate([
@@ -73,6 +80,7 @@ exports.monthlyEnrollments = asyncHandler(async (req, res) => {
 
 // @desc   Course distribution
 // @route  GET /api/v1/analytics/courses/distribution
+/** Enrollment share per course (feeds the distribution chart). */
 exports.courseDistribution = asyncHandler(async (req, res) => {
   const data = await Enrollment.aggregate([
     { $group: { _id: '$course', count: { $sum: 1 } } },
@@ -110,6 +118,7 @@ exports.courseDistribution = asyncHandler(async (req, res) => {
 
 // @desc   Placement statistics
 // @route  GET /api/v1/analytics/placements
+/** Placement funnel counts plus package statistics. */
 exports.placementStats = asyncHandler(async (req, res) => {
   const drives = await PlacementDrive.find({});
   let totalApplications = 0;
@@ -149,6 +158,7 @@ exports.placementStats = asyncHandler(async (req, res) => {
 
 // @desc   Revenue analytics
 // @route  GET /api/v1/analytics/revenue
+/** Revenue summary — collected, outstanding due and total committed. */
 exports.revenue = asyncHandler(async (req, res) => {
   const data = await Enrollment.aggregate([
     {

@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Search routes (/api/v1/search).
+ * The single global-search endpoint for the topbar.
+ */
 const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');

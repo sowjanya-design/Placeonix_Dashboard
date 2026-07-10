@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Certificate model.
+ * A course-completion certificate with a unique certificate number, snapshots of
+ * the holder/course, and a revocation state.
+ */
 const mongoose = require('mongoose');
 
 const certificateSchema = new mongoose.Schema(
@@ -34,6 +39,7 @@ const certificateSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+/** Before save: generate a unique certificate number (PLX-CERT-{year}-#####) for new records. */
 certificateSchema.pre('save', async function (next) {
   if (this.isNew && !this.certificateNumber) {
     const year = new Date().getFullYear();

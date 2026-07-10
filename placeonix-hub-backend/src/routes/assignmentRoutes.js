@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Assignment routes (/api/v1/assignments).
+ * Assignment CRUD, student submit, and mentor review of submissions.
+ */
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/assignmentController');

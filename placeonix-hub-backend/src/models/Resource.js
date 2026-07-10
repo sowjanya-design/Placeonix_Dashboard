@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Resource model.
+ * A shared learning resource (link/video/document) with its course/category and a
+ * download counter.
+ */
 const mongoose = require('mongoose');
 
 const resourceSchema = new mongoose.Schema(

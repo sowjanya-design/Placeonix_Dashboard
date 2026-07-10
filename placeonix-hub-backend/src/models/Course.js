@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Course model.
+ * A training program with nested modules and topics, fee, duration and publish state.
+ */
 const mongoose = require('mongoose');
 const { COURSE_LEVEL, COURSE_CATEGORY } = require('../config/constants');
 
@@ -97,10 +101,12 @@ courseSchema.index({ category: 1, isPublished: 1 });
 courseSchema.index({ slug: 1 });
 courseSchema.index({ title: 'text', description: 'text', tags: 'text' });
 
+/** Virtual: total number of topics across all modules. */
 courseSchema.virtual('totalTopics').get(function () {
   return (this.modules || []).reduce((sum, m) => sum + (m.topics?.length || 0), 0);
 });
 
+/** Virtual: number of modules in the course. */
 courseSchema.virtual('totalModules').get(function () {
   return (this.modules || []).length;
 });

@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Notification controller.
+ * Per-user notifications: list, mark read, clear, and the unread count.
+ */
 const Notification = require('../models/Notification');
 const AppError = require('../utils/AppError');
 const ApiResponse = require('../utils/ApiResponse');
@@ -5,6 +9,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   List my notifications
 // @route  GET /api/v1/notifications
+/** List the current user's notifications. */
 exports.listMine = asyncHandler(async (req, res) => {
   const { unreadOnly, page = 1, limit = 20 } = req.query;
   const filter = { recipient: req.user._id };
@@ -35,6 +40,7 @@ exports.listMine = asyncHandler(async (req, res) => {
 
 // @desc   Mark as read
 // @route  PATCH /api/v1/notifications/:id/read
+/** Mark one notification as read. */
 exports.markAsRead = asyncHandler(async (req, res, next) => {
   const notif = await Notification.findOneAndUpdate(
     { _id: req.params.id, recipient: req.user._id },
@@ -47,6 +53,7 @@ exports.markAsRead = asyncHandler(async (req, res, next) => {
 
 // @desc   Mark all as read
 // @route  PATCH /api/v1/notifications/read-all
+/** Mark all of the user's notifications as read. */
 exports.markAllAsRead = asyncHandler(async (req, res) => {
   const result = await Notification.updateMany(
     { recipient: req.user._id, isRead: false },
@@ -59,6 +66,7 @@ exports.markAllAsRead = asyncHandler(async (req, res) => {
 
 // @desc   Delete notification
 // @route  DELETE /api/v1/notifications/:id
+/** Delete one notification. */
 exports.deleteNotification = asyncHandler(async (req, res, next) => {
   const notif = await Notification.findOneAndDelete({
     _id: req.params.id,
@@ -70,6 +78,7 @@ exports.deleteNotification = asyncHandler(async (req, res, next) => {
 
 // @desc   Clear all notifications
 // @route  DELETE /api/v1/notifications/clear
+/** Delete all of the user's notifications. */
 exports.clearAll = asyncHandler(async (req, res) => {
   const result = await Notification.deleteMany({ recipient: req.user._id });
   return ApiResponse.success(res, 200, 'All notifications cleared', {
@@ -79,6 +88,7 @@ exports.clearAll = asyncHandler(async (req, res) => {
 
 // @desc   Get unread count only
 // @route  GET /api/v1/notifications/unread-count
+/** Count the user's unread notifications (drives the bell dot). */
 exports.unreadCount = asyncHandler(async (req, res) => {
   const count = await Notification.countDocuments({
     recipient: req.user._id,

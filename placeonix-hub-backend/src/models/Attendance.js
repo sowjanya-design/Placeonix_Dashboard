@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Attendance model.
+ * One attendance record: a student's status (present/absent/late/excused) for a
+ * session on a date.
+ */
 const mongoose = require('mongoose');
 const { ATTENDANCE } = require('../config/constants');
 

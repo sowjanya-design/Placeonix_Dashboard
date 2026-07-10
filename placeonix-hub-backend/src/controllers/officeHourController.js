@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Office-hour controller.
+ * Mentors publish 1:1 availability slots; students book and cancel them.
+ */
 const OfficeHourSlot = require('../models/OfficeHourSlot');
 const AppError = require('../utils/AppError');
 const ApiResponse = require('../utils/ApiResponse');
@@ -5,6 +9,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   List office-hour slots (role-aware)
 // @route  GET /api/v1/office-hours
+/** List office-hour slots (role-scoped). */
 exports.listSlots = asyncHandler(async (req, res) => {
   const filter = {};
   if (req.user.role === 'mentor') {
@@ -25,6 +30,7 @@ exports.listSlots = asyncHandler(async (req, res) => {
 
 // @desc   Create a slot (mentor/admin)
 // @route  POST /api/v1/office-hours
+/** Mentor adds an availability slot. */
 exports.createSlot = asyncHandler(async (req, res) => {
   const body = { ...req.body, createdBy: req.user._id };
   if (req.user.role === 'mentor') body.mentor = req.user._id;
@@ -34,6 +40,7 @@ exports.createSlot = asyncHandler(async (req, res) => {
 
 // @desc   Student books a slot
 // @route  POST /api/v1/office-hours/:id/book
+/** Student books an available slot. */
 exports.bookSlot = asyncHandler(async (req, res, next) => {
   const slot = await OfficeHourSlot.findById(req.params.id);
   if (!slot) return next(new AppError('Slot not found', 404));
@@ -62,6 +69,7 @@ exports.bookSlot = asyncHandler(async (req, res, next) => {
 
 // @desc   Cancel a booking (student) or free the slot
 // @route  POST /api/v1/office-hours/:id/cancel
+/** Cancel a booking, releasing the slot back to available. */
 exports.cancelBooking = asyncHandler(async (req, res, next) => {
   const slot = await OfficeHourSlot.findById(req.params.id);
   if (!slot) return next(new AppError('Slot not found', 404));
@@ -79,6 +87,7 @@ exports.cancelBooking = asyncHandler(async (req, res, next) => {
 
 // @desc   Delete a slot (mentor/admin)
 // @route  DELETE /api/v1/office-hours/:id
+/** Mentor deletes a slot. */
 exports.deleteSlot = asyncHandler(async (req, res, next) => {
   const slot = await OfficeHourSlot.findByIdAndDelete(req.params.id);
   if (!slot) return next(new AppError('Slot not found', 404));

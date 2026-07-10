@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Review controller.
+ * Student reviews/feedback with helpful votes and staff responses.
+ */
 const Review = require('../models/Review');
 const User = require('../models/User');
 const Course = require('../models/Course');
@@ -7,6 +11,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   List reviews for a target
 // @route  GET /api/v1/reviews?targetType=mentor&target=<id>
+/** List reviews and feedback. */
 exports.listReviews = asyncHandler(async (req, res) => {
   const { targetType, target, rating, page = 1, limit = 20 } = req.query;
   const filter = { isApproved: true };
@@ -36,6 +41,7 @@ exports.listReviews = asyncHandler(async (req, res) => {
 
 // @desc   Create review
 // @route  POST /api/v1/reviews
+/** Student posts a review (course / mentor / institute). */
 exports.createReview = asyncHandler(async (req, res, next) => {
   const { targetType, target } = req.body;
 
@@ -56,6 +62,7 @@ exports.createReview = asyncHandler(async (req, res, next) => {
 
 // @desc   Update review
 // @route  PATCH /api/v1/reviews/:id
+/** Update a review. */
 exports.updateReview = asyncHandler(async (req, res, next) => {
   const review = await Review.findOne({ _id: req.params.id, student: req.user._id });
   if (!review) return next(new AppError('Review not found', 404));
@@ -70,6 +77,7 @@ exports.updateReview = asyncHandler(async (req, res, next) => {
 
 // @desc   Delete review
 // @route  DELETE /api/v1/reviews/:id
+/** Delete a review. */
 exports.deleteReview = asyncHandler(async (req, res, next) => {
   const review = await Review.findOne({ _id: req.params.id });
   if (!review) return next(new AppError('Review not found', 404));
@@ -87,6 +95,7 @@ exports.deleteReview = asyncHandler(async (req, res, next) => {
 
 // @desc   Mark review helpful
 // @route  POST /api/v1/reviews/:id/helpful
+/** Mark a review as helpful. */
 exports.markHelpful = asyncHandler(async (req, res, next) => {
   const review = await Review.findByIdAndUpdate(
     req.params.id,
@@ -99,6 +108,7 @@ exports.markHelpful = asyncHandler(async (req, res, next) => {
 
 // @desc   Mentor/admin response to review
 // @route  POST /api/v1/reviews/:id/respond
+/** Staff posts a public response to a review. */
 exports.respondToReview = asyncHandler(async (req, res, next) => {
   const review = await Review.findById(req.params.id);
   if (!review) return next(new AppError('Review not found', 404));

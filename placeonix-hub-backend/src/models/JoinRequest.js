@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — JoinRequest model.
+ * A student's request to attend an offline class online for a date, plus the
+ * mentor's approval state and shared meeting link.
+ */
 const mongoose = require('mongoose');
 
 // An offline-batch student requesting to join a class online (occasionally).

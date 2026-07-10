@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Upload service.
+ * Multer storage/config for file uploads. Writes to /tmp on serverless (read-only
+ * FS elsewhere), filters by type/size, and builds public file URLs.
+ */
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -15,6 +20,7 @@ try {
 }
 
 // Subdirectories per resource type
+/** Make sure an upload sub-directory exists (tolerant of read-only serverless FS). */
 const ensureDir = (subdir) => {
   const dir = path.join(uploadDir, subdir);
   try {
@@ -23,6 +29,7 @@ const ensureDir = (subdir) => {
   return dir;
 };
 
+/** Multer disk-storage config for a given sub-directory. */
 const storage = (subdir) =>
   multer.diskStorage({
     destination: (req, file, cb) => cb(null, ensureDir(subdir)),
@@ -37,6 +44,7 @@ const storage = (subdir) =>
     },
   });
 
+/** Multer filter that only accepts the allowed MIME types. */
 const fileFilter = (allowedTypes) => (req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase().slice(1);
   if (allowedTypes.includes(ext)) return cb(null, true);
@@ -73,9 +81,11 @@ const courseAssetUpload = multer({
 
 // ── Helpers ──
 
+/** Build the public URL for an uploaded file. */
 const buildFileUrl = (req, filename, subdir) =>
   `${req.protocol}://${req.get('host')}/uploads/${subdir}/${filename}`;
 
+/** Remove an uploaded file from disk (best-effort). */
 const deleteFile = (filepath) => {
   try {
     if (fs.existsSync(filepath)) {

@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Attendance controller.
+ * Mark attendance and read it back per student/batch, plus the admin day overview.
+ */
 const mongoose = require('mongoose');
 const Attendance = require('../models/Attendance');
 const Enrollment = require('../models/Enrollment');
@@ -11,6 +15,7 @@ const VALID_STATUSES = Object.values(ATTENDANCE); // ['present','absent','late',
 
 // @desc   Admin day-wise / batch-wise attendance overview
 // @route  GET /api/v1/attendance/overview?date=&batch=
+/** Admin day overview: per-batch attendance and mentor session activity for a given date. */
 exports.attendanceOverview = asyncHandler(async (req, res) => {
   const date = req.query.date ? new Date(req.query.date) : new Date();
   const dayStart = new Date(date); dayStart.setHours(0, 0, 0, 0);
@@ -84,6 +89,7 @@ exports.attendanceOverview = asyncHandler(async (req, res) => {
 // @desc   Mark attendance for a batch on a date (mentor/admin)
 // @route  POST /api/v1/attendance/mark
 // @body   { batchId, date, sessionTitle, records: [{studentId, status, notes}] }
+/** Mentor marks attendance for a session/batch in bulk. */
 exports.markAttendance = asyncHandler(async (req, res, next) => {
   const { batchId, date, sessionTitle, records } = req.body;
 
@@ -188,6 +194,7 @@ exports.markAttendance = asyncHandler(async (req, res, next) => {
 
 // @desc   Get attendance for batch
 // @route  GET /api/v1/attendance/batch/:batchId
+/** Attendance records for a specific batch. */
 exports.getBatchAttendance = asyncHandler(async (req, res, next) => {
   const { batchId } = req.params;
   if (!mongoose.isValidObjectId(batchId)) return next(new AppError('Invalid batchId', 400));
@@ -220,6 +227,7 @@ exports.getBatchAttendance = asyncHandler(async (req, res, next) => {
 
 // @desc   Get my attendance (student)
 // @route  GET /api/v1/attendance/me
+/** The current student's own attendance records and summary. */
 exports.myAttendance = asyncHandler(async (req, res) => {
   const { from, to, batchId } = req.query;
   const filter = { student: req.user._id };
@@ -252,6 +260,7 @@ exports.myAttendance = asyncHandler(async (req, res) => {
 
 // @desc   Get attendance for a specific student
 // @route  GET /api/v1/attendance/student/:studentId
+/** Attendance records for a specific student. */
 exports.getStudentAttendance = asyncHandler(async (req, res, next) => {
   const { studentId } = req.params;
   if (!mongoose.isValidObjectId(studentId)) return next(new AppError('Invalid studentId', 400));

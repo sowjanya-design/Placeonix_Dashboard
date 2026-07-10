@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Lead routes (/api/v1/leads).
+ * Public lead capture plus admin CRM management (list/get/update/notes/delete).
+ */
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');

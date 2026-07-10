@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Session controller.
+ * Schedule live classes and manage their lifecycle (start / complete / recording).
+ */
 const Session = require('../models/Session');
 const Batch = require('../models/Batch');
 const Enrollment = require('../models/Enrollment');
@@ -7,6 +11,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   List sessions (filtered by user role)
 // @route  GET /api/v1/sessions?from=&to=&batch=&status=
+/** List sessions (role-scoped). */
 exports.listSessions = asyncHandler(async (req, res) => {
   const { from, to, batch, status, page = 1, limit = 20 } = req.query;
   const filter = {};
@@ -40,6 +45,7 @@ exports.listSessions = asyncHandler(async (req, res) => {
 
 // @desc   Today's sessions
 // @route  GET /api/v1/sessions/today
+/** Sessions scheduled for today. */
 exports.todaySessions = asyncHandler(async (req, res) => {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
@@ -66,6 +72,7 @@ exports.todaySessions = asyncHandler(async (req, res) => {
 
 // @desc   Get session
 // @route  GET /api/v1/sessions/:id
+/** Get one session. */
 exports.getSession = asyncHandler(async (req, res, next) => {
   const session = await Session.findById(req.params.id)
     .populate('batch course instructor materials');
@@ -75,6 +82,7 @@ exports.getSession = asyncHandler(async (req, res, next) => {
 
 // @desc   Create session
 // @route  POST /api/v1/sessions
+/** Schedule a session. */
 exports.createSession = asyncHandler(async (req, res, next) => {
   const batch = await Batch.findById(req.body.batch);
   if (!batch) return next(new AppError('Batch not found', 404));
@@ -94,6 +102,7 @@ exports.createSession = asyncHandler(async (req, res, next) => {
 
 // @desc   Update session
 // @route  PATCH /api/v1/sessions/:id
+/** Update a session (time, link or recording). */
 exports.updateSession = asyncHandler(async (req, res, next) => {
   const session = await Session.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
@@ -105,6 +114,7 @@ exports.updateSession = asyncHandler(async (req, res, next) => {
 
 // @desc   Delete / cancel session
 // @route  DELETE /api/v1/sessions/:id
+/** Delete a session. */
 exports.deleteSession = asyncHandler(async (req, res, next) => {
   const session = await Session.findByIdAndUpdate(
     req.params.id,
@@ -117,6 +127,7 @@ exports.deleteSession = asyncHandler(async (req, res, next) => {
 
 // @desc   Mark session as live
 // @route  PATCH /api/v1/sessions/:id/start
+/** Mark a scheduled session as live. */
 exports.startSession = asyncHandler(async (req, res, next) => {
   const session = await Session.findByIdAndUpdate(
     req.params.id,
@@ -129,6 +140,7 @@ exports.startSession = asyncHandler(async (req, res, next) => {
 
 // @desc   Complete session
 // @route  PATCH /api/v1/sessions/:id/complete
+/** Mark a live session complete. */
 exports.completeSession = asyncHandler(async (req, res, next) => {
   const session = await Session.findByIdAndUpdate(
     req.params.id,

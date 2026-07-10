@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Course routes (/api/v1/courses).
+ * Course CRUD and nested module/topic management; publish toggle. Reads are open,
+ * writes are admin-only.
+ */
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');

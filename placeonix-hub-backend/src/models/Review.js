@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Review model.
+ * Student feedback on a course/mentor/institute: rating, comment, helpful votes and
+ * an optional staff response.
+ */
 const mongoose = require('mongoose');
 
 const reviewSchema = new mongoose.Schema(

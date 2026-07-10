@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Mock-interview controller.
+ * Schedule mock interviews and record their feedback and scores.
+ */
 const MockInterview = require('../models/MockInterview');
 const AppError = require('../utils/AppError');
 const ApiResponse = require('../utils/ApiResponse');
@@ -5,6 +9,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   List mock interviews (role-aware)
 // @route  GET /api/v1/mock-interviews
+/** List mock interviews (role-scoped). */
 exports.listMocks = asyncHandler(async (req, res) => {
   const filter = {};
   if (req.user.role === 'student') {
@@ -30,6 +35,7 @@ exports.listMocks = asyncHandler(async (req, res) => {
 
 // @desc   Schedule a mock interview (admin/mentor)
 // @route  POST /api/v1/mock-interviews
+/** Schedule a mock interview for a student. */
 exports.createMock = asyncHandler(async (req, res) => {
   const body = { ...req.body, createdBy: req.user._id };
   if (!body.interviewer && req.user.role === 'mentor') body.interviewer = req.user._id;
@@ -51,6 +57,7 @@ exports.createMock = asyncHandler(async (req, res) => {
 
 // @desc   Update / record feedback (admin/mentor)
 // @route  PATCH /api/v1/mock-interviews/:id
+/** Update a mock interview / record its feedback. */
 exports.updateMock = asyncHandler(async (req, res, next) => {
   const mock = await MockInterview.findById(req.params.id);
   if (!mock) return next(new AppError('Mock interview not found', 404));
@@ -82,6 +89,7 @@ exports.updateMock = asyncHandler(async (req, res, next) => {
 
 // @desc   Delete a mock interview (admin/mentor)
 // @route  DELETE /api/v1/mock-interviews/:id
+/** Delete a mock interview. */
 exports.deleteMock = asyncHandler(async (req, res, next) => {
   const mock = await MockInterview.findByIdAndDelete(req.params.id);
   if (!mock) return next(new AppError('Mock interview not found', 404));

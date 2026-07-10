@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Payment routes (/api/v1/payments).
+ * Student self-pay + fee summary; admin record/update/refund and listing.
+ */
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/paymentController');

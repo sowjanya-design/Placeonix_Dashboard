@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — API router index.
+ * Mounts every feature router under /api/v1 (see the router.use calls below).
+ */
 const express = require('express');
 const router = express.Router();
 

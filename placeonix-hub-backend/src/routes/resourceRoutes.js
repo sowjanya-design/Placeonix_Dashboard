@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Resource routes (/api/v1/resources).
+ * Resource CRUD plus download tracking.
+ */
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/resourceController');

@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Payment model.
+ * A fee payment against an enrollment: amount, method, status and timestamps.
+ */
 const mongoose = require('mongoose');
 
 const paymentSchema = new mongoose.Schema(
@@ -47,6 +51,7 @@ const paymentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+/** Before save: generate a unique invoice number (PLX/{year}/######) for new records. */
 paymentSchema.pre('save', async function (next) {
   if (this.isNew && !this.invoiceNumber) {
     const year = new Date().getFullYear();

@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Lead model.
+ * An admissions-CRM prospect: contact details, course interest, source, pipeline
+ * status and follow-up notes.
+ */
 const mongoose = require('mongoose');
 
 const leadSchema = new mongoose.Schema(

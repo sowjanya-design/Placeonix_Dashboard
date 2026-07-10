@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — User controller.
+ * User management, roles, dashboard stats, enrollments, progress and the leaderboard.
+ */
 const User = require('../models/User');
 const Enrollment = require('../models/Enrollment');
 const AppError = require('../utils/AppError');
@@ -6,6 +10,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   List users (admin)
 // @route  GET /api/v1/users?role=&status=&page=&limit=&search=
+/** List users (filterable by role, status, etc.). */
 exports.listUsers = asyncHandler(async (req, res) => {
   const { role, status, search, page = 1, limit = 20, sort = '-createdAt' } = req.query;
 
@@ -53,6 +58,7 @@ exports.listUsers = asyncHandler(async (req, res) => {
 
 // @desc   Get one user
 // @route  GET /api/v1/users/:id
+/** Get one user. */
 exports.getUser = asyncHandler(async (req, res, next) => {
   const user = await User.findById(req.params.id);
   if (!user) return next(new AppError('User not found', 404));
@@ -61,6 +67,7 @@ exports.getUser = asyncHandler(async (req, res, next) => {
 
 // @desc   Create user (admin only — for mentors and admins)
 // @route  POST /api/v1/users
+/** Create a user (student / mentor / admin). */
 exports.createUser = asyncHandler(async (req, res, next) => {
   const existing = await User.findOne({ email: req.body.email });
   if (existing) return next(new AppError('Email already in use', 409));
@@ -74,6 +81,7 @@ exports.createUser = asyncHandler(async (req, res, next) => {
 
 // @desc   Update user
 // @route  PATCH /api/v1/users/:id
+/** Update a user. */
 exports.updateUser = asyncHandler(async (req, res, next) => {
   const updates = { ...req.body };
   delete updates.password; // password updates go through dedicated endpoint
@@ -89,6 +97,7 @@ exports.updateUser = asyncHandler(async (req, res, next) => {
 
 // @desc   Delete user (soft delete — sets status=inactive)
 // @route  DELETE /api/v1/users/:id
+/** Delete a user and cascade-remove their enrollments. */
 exports.deleteUser = asyncHandler(async (req, res, next) => {
   if (String(req.params.id) === String(req.user._id)) {
     return next(new AppError('You cannot delete your own account', 400));
@@ -109,6 +118,7 @@ exports.deleteUser = asyncHandler(async (req, res, next) => {
 
 // @desc   Change user role (admin only)
 // @route  PATCH /api/v1/users/:id/role
+/** Change a user's role. */
 exports.updateRole = asyncHandler(async (req, res, next) => {
   const { role } = req.body;
   if (!['admin', 'mentor', 'student'].includes(role)) {
@@ -121,6 +131,7 @@ exports.updateRole = asyncHandler(async (req, res, next) => {
 
 // @desc   Get my dashboard stats (role-aware)
 // @route  GET /api/v1/users/me/stats
+/** Dashboard summary stats for the current user's role. */
 exports.myStats = asyncHandler(async (req, res) => {
   const role = req.user.role;
   let stats = {};
@@ -153,6 +164,7 @@ exports.myStats = asyncHandler(async (req, res) => {
 
 // @desc   Current student's enrolled courses (with batch mode + progress)
 // @route  GET /api/v1/users/me/enrollments
+/** The current student's enrollments. */
 exports.myEnrollments = asyncHandler(async (req, res) => {
   const enrollments = await Enrollment.find({ student: req.user._id })
     .populate('course', 'title category color shortDescription description duration fee modules')
@@ -168,6 +180,7 @@ exports.myEnrollments = asyncHandler(async (req, res) => {
 
 // @desc   Student marks a module complete (updates progress)
 // @route  PATCH /api/v1/users/me/enrollments/:id/progress
+/** Update the student's module-completion progress for an enrollment. */
 exports.updateMyProgress = asyncHandler(async (req, res, next) => {
   const { moduleId, completed } = req.body;
   if (!moduleId) return next(new AppError('moduleId is required', 400));
@@ -202,6 +215,7 @@ exports.updateMyProgress = asyncHandler(async (req, res, next) => {
 
 // @desc   Student leaderboard (points from progress + attendance), any logged-in user
 // @route  GET /api/v1/users/leaderboard
+/** Points leaderboard across students (progress + attendance). */
 exports.leaderboard = asyncHandler(async (req, res) => {
   const Attendance = require('../models/Attendance');
   const { batch, course } = req.query;
@@ -256,6 +270,7 @@ exports.leaderboard = asyncHandler(async (req, res) => {
 
 // @desc   Enrollments for a specific student (admin/mentor) — used for recording payments
 // @route  GET /api/v1/users/:id/enrollments
+/** A given user's enrollments (admin — used when recording payments). */
 exports.userEnrollments = asyncHandler(async (req, res) => {
   const enrollments = await Enrollment.find({ student: req.params.id })
     .populate('course', 'title')
@@ -266,6 +281,7 @@ exports.userEnrollments = asyncHandler(async (req, res) => {
 
 // @desc   Get students assigned to current mentor
 // @route  GET /api/v1/users/my-students
+/** The current mentor's assigned students. */
 exports.myStudents = asyncHandler(async (req, res) => {
   const Batch = require('../models/Batch');
   const myBatches = await Batch.find({ mentor: req.user._id }).select('_id');

@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Auth controller.
+ * Registration, login, JWT access/refresh tokens (refresh stored as an httpOnly
+ * cookie), password change and the forgot/reset-password flow.
+ */
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const ApiResponse = require('../utils/ApiResponse');
@@ -5,6 +10,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { generateTokenPair, verifyToken } = require('../utils/jwt');
 const crypto = require('crypto');
 
+/** Build the options for the httpOnly refresh-token cookie (secure/sameSite per environment). */
 const cookieOptions = () => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
@@ -12,6 +18,7 @@ const cookieOptions = () => ({
   maxAge: (Number(process.env.JWT_COOKIE_EXPIRE) || 7) * 24 * 60 * 60 * 1000,
 });
 
+/** Issue an access+refresh token pair — access token in the JSON body, refresh token as an httpOnly cookie. */
 const sendTokens = (user, res, statusCode = 200, message = 'Success') => {
   const { accessToken, refreshToken } = generateTokenPair(user);
 
@@ -34,6 +41,7 @@ const sendTokens = (user, res, statusCode = 200, message = 'Success') => {
 
 // @desc   Register new user (public — for student self-signup; admin creates mentors/admins)
 // @route  POST /api/v1/auth/register
+/** Register a new user and immediately issue tokens. */
 exports.register = asyncHandler(async (req, res, next) => {
   const { email, role } = req.body;
 
@@ -51,6 +59,7 @@ exports.register = asyncHandler(async (req, res, next) => {
 
 // @desc   Login
 // @route  POST /api/v1/auth/login
+/** Authenticate credentials and issue access/refresh tokens. */
 exports.login = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
 
@@ -82,6 +91,7 @@ exports.login = asyncHandler(async (req, res, next) => {
 
 // @desc   Refresh access token
 // @route  POST /api/v1/auth/refresh
+/** Exchange a valid refresh token for a fresh access token. */
 exports.refreshToken = asyncHandler(async (req, res, next) => {
   const refresh = req.cookies?.refreshToken || req.body.refreshToken;
   if (!refresh) return next(new AppError('No refresh token provided', 401));
@@ -103,6 +113,7 @@ exports.refreshToken = asyncHandler(async (req, res, next) => {
 
 // @desc   Logout
 // @route  POST /api/v1/auth/logout
+/** Log the user out by clearing the refresh-token cookie. */
 exports.logout = asyncHandler(async (req, res) => {
   if (req.user) {
     req.user.refreshToken = undefined;
@@ -115,12 +126,14 @@ exports.logout = asyncHandler(async (req, res) => {
 
 // @desc   Current user
 // @route  GET /api/v1/auth/me
+/** Return the currently authenticated user's profile. */
 exports.getMe = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, 200, 'Current user', { user: req.user });
 });
 
 // @desc   Update password
 // @route  PATCH /api/v1/auth/password
+/** Change the signed-in user's password (verifies the current one first). */
 exports.updatePassword = asyncHandler(async (req, res, next) => {
   const { currentPassword, newPassword } = req.body;
   if (!currentPassword || !newPassword) {
@@ -142,6 +155,7 @@ exports.updatePassword = asyncHandler(async (req, res, next) => {
 
 // @desc   Forgot password — generates reset token
 // @route  POST /api/v1/auth/forgot-password
+/** Start password reset — generate and (in prod) email a reset token. */
 exports.forgotPassword = asyncHandler(async (req, res, next) => {
   const user = await User.findOne({ email: req.body.email });
   if (!user) {
@@ -177,6 +191,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
 
 // @desc   Reset password
 // @route  POST /api/v1/auth/reset-password/:token
+/** Complete password reset using a valid reset token. */
 exports.resetPassword = asyncHandler(async (req, res, next) => {
   const hashed = crypto.createHash('sha256').update(req.params.token).digest('hex');
 

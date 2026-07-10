@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Lead controller.
+ * Admissions CRM: capture and manage prospective-student leads.
+ */
 const Lead = require('../models/Lead');
 const AppError = require('../utils/AppError');
 const ApiResponse = require('../utils/ApiResponse');
@@ -5,6 +9,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   Submit inquiry (PUBLIC — from website contact form)
 // @route  POST /api/v1/leads
+/** Capture a new admissions lead (public endpoint). */
 exports.createLead = asyncHandler(async (req, res) => {
   const lead = await Lead.create(req.body);
   return ApiResponse.created(
@@ -16,6 +21,7 @@ exports.createLead = asyncHandler(async (req, res) => {
 
 // @desc   List leads (admin)
 // @route  GET /api/v1/leads
+/** List CRM leads. */
 exports.listLeads = asyncHandler(async (req, res) => {
   const { status, source, page = 1, limit = 20 } = req.query;
   const filter = {};
@@ -35,6 +41,7 @@ exports.listLeads = asyncHandler(async (req, res) => {
 
 // @desc   Get lead
 // @route  GET /api/v1/leads/:id
+/** Get one lead. */
 exports.getLead = asyncHandler(async (req, res, next) => {
   const lead = await Lead.findById(req.params.id)
     .populate('courseInterested')
@@ -45,6 +52,7 @@ exports.getLead = asyncHandler(async (req, res, next) => {
 
 // @desc   Update lead status / assign
 // @route  PATCH /api/v1/leads/:id
+/** Update a lead (e.g. move its pipeline status). */
 exports.updateLead = asyncHandler(async (req, res, next) => {
   const updates = { ...req.body };
   if (updates.status === 'contacted' && !updates.contactedAt) updates.contactedAt = new Date();
@@ -57,6 +65,7 @@ exports.updateLead = asyncHandler(async (req, res, next) => {
 
 // @desc   Add note to lead
 // @route  POST /api/v1/leads/:id/notes
+/** Append a note to a lead's history. */
 exports.addNote = asyncHandler(async (req, res, next) => {
   const lead = await Lead.findById(req.params.id);
   if (!lead) return next(new AppError('Lead not found', 404));
@@ -68,6 +77,7 @@ exports.addNote = asyncHandler(async (req, res, next) => {
 
 // @desc   Delete lead
 // @route  DELETE /api/v1/leads/:id
+/** Delete a lead. */
 exports.deleteLead = asyncHandler(async (req, res, next) => {
   const lead = await Lead.findByIdAndDelete(req.params.id);
   if (!lead) return next(new AppError('Lead not found', 404));

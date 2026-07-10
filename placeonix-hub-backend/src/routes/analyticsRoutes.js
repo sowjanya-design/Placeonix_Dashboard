@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Analytics routes (/api/v1/analytics).
+ * Admin-only read endpoints: overview, monthly enrollments, distribution, placements, revenue.
+ */
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/analyticsController');

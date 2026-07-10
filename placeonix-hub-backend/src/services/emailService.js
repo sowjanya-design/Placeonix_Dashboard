@@ -1,8 +1,15 @@
+/*
+ * Placeonix Hub — Email service.
+ * Nodemailer transport plus the transactional email templates (welcome, password
+ * reset, enrollment, placement invite, lead confirmation). No-ops gracefully if
+ * SMTP isn't configured.
+ */
 const nodemailer = require('nodemailer');
 const logger = require('../utils/logger');
 
 let transporter = null;
 
+/** Lazily build the Nodemailer transport from SMTP env vars (returns null if unset). */
 const initTransporter = () => {
   if (transporter) return transporter;
 
@@ -32,6 +39,7 @@ const initTransporter = () => {
 /**
  * Sends an email. Falls back to logging in development if SMTP not configured.
  */
+/** Low-level send helper — no-ops quietly when email isn't configured. */
 const sendEmail = async ({ to, subject, html, text, attachments }) => {
   const tx = initTransporter();
   const from = process.env.EMAIL_FROM || 'Placeonix <noreply@placeonix.in>';
@@ -54,6 +62,7 @@ const sendEmail = async ({ to, subject, html, text, attachments }) => {
 
 // ── Email templates ──
 
+/** Shared branded HTML email wrapper (title, body, optional call-to-action button). */
 const baseTemplate = (title, body, ctaText, ctaUrl) => `
 <!DOCTYPE html>
 <html>
@@ -79,6 +88,7 @@ const baseTemplate = (title, body, ctaText, ctaUrl) => `
 </body>
 </html>`;
 
+/** Welcome email sent to a newly created user. */
 const sendWelcomeEmail = (user) =>
   sendEmail({
     to: user.email,
@@ -93,6 +103,7 @@ const sendWelcomeEmail = (user) =>
     ),
   });
 
+/** Password-reset email carrying the reset link/token. */
 const sendPasswordResetEmail = (user, resetToken) => {
   const url = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
   return sendEmail({
@@ -110,6 +121,7 @@ const sendPasswordResetEmail = (user, resetToken) => {
   });
 };
 
+/** Confirmation email when a student is enrolled into a course/batch. */
 const sendEnrollmentEmail = (user, course, batch) =>
   sendEmail({
     to: user.email,
@@ -127,6 +139,7 @@ const sendEnrollmentEmail = (user, course, batch) =>
     ),
   });
 
+/** Notify a student they're eligible for a placement drive. */
 const sendPlacementInviteEmail = (user, drive) =>
   sendEmail({
     to: user.email,
@@ -144,6 +157,7 @@ const sendPlacementInviteEmail = (user, drive) =>
     ),
   });
 
+/** Thank-you email to a prospect who submitted a lead. */
 const sendLeadConfirmationEmail = (lead) =>
   sendEmail({
     to: lead.email,

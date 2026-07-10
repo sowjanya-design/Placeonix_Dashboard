@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Join-request controller.
+ * Students request to attend an offline class online; mentors approve/reject and
+ * share a meeting link.
+ */
 const JoinRequest = require('../models/JoinRequest');
 const Batch = require('../models/Batch');
 const ApiResponse = require('../utils/ApiResponse');
@@ -6,6 +11,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   Student requests to join a class online
 // @route  POST /api/v1/join-requests
+/** Student creates a request to join an offline class online. */
 exports.create = asyncHandler(async (req, res, next) => {
   const { batchId, date, reason } = req.body;
   if (!batchId) return next(new AppError('batchId is required', 400));
@@ -25,6 +31,7 @@ exports.create = asyncHandler(async (req, res, next) => {
 
 // @desc   List join requests (role-scoped)
 // @route  GET /api/v1/join-requests
+/** List online-join requests (role-scoped). */
 exports.list = asyncHandler(async (req, res) => {
   const filter = {};
   if (req.user.role === 'mentor') filter.mentor = req.user._id;
@@ -41,6 +48,7 @@ exports.list = asyncHandler(async (req, res) => {
 
 // @desc   Approve / reject a request (mentor/admin)
 // @route  PATCH /api/v1/join-requests/:id
+/** Approve or reject a join request (approval shares a meeting link). */
 exports.update = asyncHandler(async (req, res, next) => {
   const { status, meetingLink } = req.body;
   const request = await JoinRequest.findById(req.params.id);

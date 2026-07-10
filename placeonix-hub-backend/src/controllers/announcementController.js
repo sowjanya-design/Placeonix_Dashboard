@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Announcement controller.
+ * Create/read/update/delete announcements plus per-user read tracking.
+ */
 const Announcement = require('../models/Announcement');
 const Enrollment = require('../models/Enrollment');
 const User = require('../models/User');
@@ -8,6 +12,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   List announcements (filtered by user's role/batches)
 // @route  GET /api/v1/announcements
+/** List announcements visible to the caller's role. */
 exports.listAnnouncements = asyncHandler(async (req, res) => {
   const { type, page = 1, limit = 20 } = req.query;
   const now = new Date();
@@ -51,6 +56,7 @@ exports.listAnnouncements = asyncHandler(async (req, res) => {
 
 // @desc   Create announcement
 // @route  POST /api/v1/announcements
+/** Create and publish an announcement. */
 exports.createAnnouncement = asyncHandler(async (req, res) => {
   const announcement = await Announcement.create({ ...req.body, createdBy: req.user._id });
 
@@ -84,6 +90,7 @@ exports.createAnnouncement = asyncHandler(async (req, res) => {
 
 // @desc   Update announcement
 // @route  PATCH /api/v1/announcements/:id
+/** Edit an announcement. */
 exports.updateAnnouncement = asyncHandler(async (req, res, next) => {
   const announcement = await Announcement.findByIdAndUpdate(req.params.id, req.body, { new: true });
   if (!announcement) return next(new AppError('Announcement not found', 404));
@@ -92,6 +99,7 @@ exports.updateAnnouncement = asyncHandler(async (req, res, next) => {
 
 // @desc   Delete announcement
 // @route  DELETE /api/v1/announcements/:id
+/** Delete an announcement. */
 exports.deleteAnnouncement = asyncHandler(async (req, res, next) => {
   const announcement = await Announcement.findByIdAndDelete(req.params.id);
   if (!announcement) return next(new AppError('Announcement not found', 404));
@@ -100,6 +108,7 @@ exports.deleteAnnouncement = asyncHandler(async (req, res, next) => {
 
 // @desc   Mark as read
 // @route  POST /api/v1/announcements/:id/read
+/** Mark an announcement as read for the current user. */
 exports.markAsRead = asyncHandler(async (req, res, next) => {
   const announcement = await Announcement.findById(req.params.id);
   if (!announcement) return next(new AppError('Announcement not found', 404));

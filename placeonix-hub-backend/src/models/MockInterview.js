@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — MockInterview model.
+ * A scheduled mock interview and its recorded feedback (overall score, strengths,
+ * improvements).
+ */
 const mongoose = require('mongoose');
 
 const mockInterviewSchema = new mongoose.Schema(

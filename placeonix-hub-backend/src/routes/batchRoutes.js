@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Batch routes (/api/v1/batches).
+ * Batch CRUD plus student enroll/unenroll. Writes are admin-only.
+ */
 const express = require('express');
 const router = express.Router();
 const batchCtrl = require('../controllers/batchController');

@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Office-hour routes (/api/v1/office-hours).
+ * Mentors create slots; students book/cancel.
+ */
 const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');

@@ -1,15 +1,24 @@
+/*
+ * Placeonix Hub — Error-handling middleware.
+ * The central Express error handler: normalises known errors (Mongoose cast /
+ * duplicate-key / validation, JWT errors) into clean AppError responses, with
+ * verbose output in dev and safe output in production.
+ */
 const AppError = require('../utils/AppError');
 const logger = require('../utils/logger');
 
+/** Turn a Mongoose bad-ObjectId cast into a clean 400. */
 const handleCastError = (err) =>
   new AppError(`Invalid ${err.path}: ${err.value}`, 400);
 
+/** Turn a Mongo duplicate-key (E11000) error into a clean 409. */
 const handleDuplicateKey = (err) => {
   const field = Object.keys(err.keyValue)[0];
   const value = err.keyValue[field];
   return new AppError(`Duplicate value for '${field}': ${value}`, 409);
 };
 
+/** Turn a Mongoose validation error into a clean 400 with field messages. */
 const handleValidationError = (err) => {
   const errors = Object.values(err.errors).map((e) => ({
     field: e.path,
@@ -18,9 +27,12 @@ const handleValidationError = (err) => {
   return new AppError('Validation failed', 400, errors);
 };
 
+/** Map an invalid-JWT error to a 401. */
 const handleJWTError = () => new AppError('Invalid authentication token', 401);
+/** Map an expired-JWT error to a 401. */
 const handleJWTExpired = () => new AppError('Authentication token expired', 401);
 
+/** Verbose error response (stack + details) for development. */
 const sendErrorDev = (err, res) => {
   res.status(err.statusCode || 500).json({
     success: false,
@@ -32,6 +44,7 @@ const sendErrorDev = (err, res) => {
   });
 };
 
+/** Safe error response for production — leaks nothing on unexpected errors. */
 const sendErrorProd = (err, res) => {
   if (err.isOperational) {
     return res.status(err.statusCode).json({
@@ -49,6 +62,7 @@ const sendErrorProd = (err, res) => {
   });
 };
 
+/** Central Express error handler: classify the error, then send a dev/prod response. */
 const errorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';

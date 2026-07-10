@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Review routes (/api/v1/reviews).
+ * Review CRUD, helpful votes and staff responses.
+ */
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');

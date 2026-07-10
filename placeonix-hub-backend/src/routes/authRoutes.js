@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Auth routes (/api/v1/auth).
+ * register, login, refresh, logout, me, password change, forgot/reset password.
+ * Input is validated by express-validator before hitting the controller.
+ */
 const express = require('express');
 const { body } = require('express-validator');
 const router = express.Router();

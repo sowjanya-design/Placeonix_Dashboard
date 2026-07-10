@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Company model.
+ * A reusable employer profile (industry, location, contact) referenced by
+ * placement drives.
+ */
 const mongoose = require('mongoose');
 
 const companySchema = new mongoose.Schema(

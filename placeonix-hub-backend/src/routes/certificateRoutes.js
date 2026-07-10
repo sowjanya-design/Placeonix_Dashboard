@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Certificate routes (/api/v1/certificates).
+ * Public verify by number, student 'my certificates', admin issue/list/revoke.
+ */
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/certificateController');

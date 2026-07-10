@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — PlacementDrive model.
+ * A hiring drive with company/role, package range and an embedded applications
+ * pipeline (each application has a stage and history).
+ */
 const mongoose = require('mongoose');
 const { PLACEMENT_STATUS } = require('../config/constants');
 
@@ -79,10 +84,12 @@ const placementDriveSchema = new mongoose.Schema(
 
 placementDriveSchema.index({ status: 1, applicationDeadline: 1 });
 
+/** Virtual: number of applications on this drive. */
 placementDriveSchema.virtual('applicantCount').get(function () {
   return this.applications?.length || 0;
 });
 
+/** Virtual: number of applicants who reached the 'placed' stage. */
 placementDriveSchema.virtual('placedCount').get(function () {
   return this.applications?.filter((a) => a.status === 'placed').length || 0;
 });

@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Announcement model.
+ * A broadcast message with type/priority and audience targeting (public or specific
+ * roles); tracks which users have read it.
+ */
 const mongoose = require('mongoose');
 
 const announcementSchema = new mongoose.Schema(

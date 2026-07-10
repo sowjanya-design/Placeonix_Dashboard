@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — Assignment model.
+ * An assessment for a course/batch with a due date and an embedded array of student
+ * submissions (each with score/feedback/status).
+ */
 const mongoose = require('mongoose');
 const { ASSIGNMENT_STATUS } = require('../config/constants');
 
@@ -61,10 +66,12 @@ const assignmentSchema = new mongoose.Schema(
 assignmentSchema.index({ batch: 1, dueDate: 1 });
 assignmentSchema.index({ course: 1, status: 1 });
 
+/** Virtual: number of submissions received. */
 assignmentSchema.virtual('submissionCount').get(function () {
   return this.submissions?.length || 0;
 });
 
+/** Virtual: whether the due date has passed. */
 assignmentSchema.virtual('isOverdue').get(function () {
   return this.dueDate < new Date();
 });

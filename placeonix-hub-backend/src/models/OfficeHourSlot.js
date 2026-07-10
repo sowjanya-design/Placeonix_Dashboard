@@ -1,3 +1,8 @@
+/*
+ * Placeonix Hub — OfficeHourSlot model.
+ * A mentor's bookable 1:1 time slot with a topic/mode and its booking (student +
+ * status).
+ */
 const mongoose = require('mongoose');
 
 const officeHourSlotSchema = new mongoose.Schema(

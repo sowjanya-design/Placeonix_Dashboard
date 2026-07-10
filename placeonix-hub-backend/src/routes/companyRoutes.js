@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Company routes (/api/v1/companies).
+ * Employer-database CRUD.
+ */
 const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');

@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Session routes (/api/v1/sessions).
+ * Session CRUD plus start/complete and today's sessions. Managed by mentors/admins.
+ */
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/sessionController');

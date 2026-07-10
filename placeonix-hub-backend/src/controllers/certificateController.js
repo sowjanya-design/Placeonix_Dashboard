@@ -1,3 +1,7 @@
+/*
+ * Placeonix Hub — Certificate controller.
+ * Issue, list, publicly verify and revoke course-completion certificates.
+ */
 const Certificate = require('../models/Certificate');
 const Enrollment = require('../models/Enrollment');
 const AppError = require('../utils/AppError');
@@ -6,6 +10,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // @desc   List certificates
 // @route  GET /api/v1/certificates
+/** List certificates (role-scoped — students see only their own). */
 exports.listCertificates = asyncHandler(async (req, res) => {
   const { type, page = 1, limit = 20 } = req.query;
   const filter = {};
@@ -28,6 +33,7 @@ exports.listCertificates = asyncHandler(async (req, res) => {
 
 // @desc   My certificates
 // @route  GET /api/v1/certificates/me
+/** The current student's own certificates. */
 exports.myCertificates = asyncHandler(async (req, res) => {
   const certificates = await Certificate.find({ student: req.user._id })
     .populate('course', 'title category')
@@ -42,6 +48,7 @@ exports.myCertificates = asyncHandler(async (req, res) => {
 
 // @desc   Issue certificate (admin)
 // @route  POST /api/v1/certificates/issue
+/** Issue a certificate for a completed enrollment. */
 exports.issueCertificate = asyncHandler(async (req, res, next) => {
   const { enrollmentId, type, grade, score } = req.body;
 
@@ -81,6 +88,7 @@ exports.issueCertificate = asyncHandler(async (req, res, next) => {
 
 // @desc   Public verification by number
 // @route  GET /api/v1/certificates/verify/:number
+/** Publicly verify a certificate by its number. */
 exports.verifyCertificate = asyncHandler(async (req, res, next) => {
   const cert = await Certificate.findOne({
     certificateNumber: req.params.number,
@@ -109,6 +117,7 @@ exports.verifyCertificate = asyncHandler(async (req, res, next) => {
 
 // @desc   Revoke certificate (admin)
 // @route  POST /api/v1/certificates/:id/revoke
+/** Revoke a previously issued certificate. */
 exports.revokeCertificate = asyncHandler(async (req, res, next) => {
   const cert = await Certificate.findByIdAndUpdate(
     req.params.id,
