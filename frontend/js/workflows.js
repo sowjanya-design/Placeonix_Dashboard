@@ -1,13 +1,19 @@
 /*
- * Placeonix Hub — Workflows: assessments/assignments, progress, gamification/leaderboard,
- * lead→student conversion, batch enrollment, join-requests, support chat.
- * Part of the dashboard app; loaded after core.js (see the HTML).
+ * Placeonix Hub — Workflows namespace.
+ * The multi-step "actions" that tie records together, beyond simple CRUD:
+ * the assignment lifecycle (create → submit → grade), course-progress tracking,
+ * the gamification leaderboard, lead→student conversion, batch enrollment,
+ * session management (start/complete/record), online-join request approvals,
+ * and the render functions for the admin/mentor management pages plus support
+ * chat. Loaded after core.js + ui.js (uses apiFetch, formModal, toast, etc.).
  */
 // ───────────────────────── ASSESSMENTS / ASSIGNMENTS ─────────────────────────
+/** Find the current student's submission inside an assignment (or null if they haven't submitted yet). */
 function _mySubmission(a){
   if(!a.submissions || !_currentUser) return null;
   return a.submissions.find(function(s){ return s.student && (s.student._id===_currentUser._id || s.student===_currentUser._id); });
 }
+/** Render an assignment card from the student's view — shows their status (pending/submitted/graded/overdue) and a submit button. */
 function studentAssignmentCard(a){
   var due = a.dueDate ? fmtDate(a.dueDate) : '—';
   var overdue = a.dueDate && new Date(a.dueDate).getTime() < Date.now();
@@ -29,6 +35,7 @@ function studentAssignmentCard(a){
     '<div><button class="continue-btn" style="padding:.5rem 1.1rem" onclick="submitWork(\''+a._id+'\')">'+btnLabel+'</button></div>'+
   '</div>';
 }
+/** Render an assignment card from the mentor's view — submission counts plus view/edit/delete actions. */
 function mentorAssignmentCard(a){
   var due = a.dueDate ? fmtDate(a.dueDate) : '—';
   var subs = (a.submissions||[]).length;
@@ -46,6 +53,7 @@ function mentorAssignmentCard(a){
     '</div>'+
   '</div>';
 }
+/** Student submission form: paste a Drive/GitHub link and optional notes against an assignment. */
 function submitWork(id){
   var a=_assignmentsCache[id]||{}; var my=_mySubmission(a)||{};
   formModal({
@@ -62,6 +70,7 @@ function submitWork(id){
     }
   });
 }
+/** Shared add/edit assignment form (loads course + batch dropdown options first). */
 async function _assignmentForm(title, submitLabel, initial, onSubmit){
   initial = initial || {};
   var courses = _demoMode ? _DEMO_COURSES.map(function(c){return{value:c._id,label:c.title};}) : await loadOptions('/courses?limit=100',function(c){return c.title;});
@@ -81,10 +90,12 @@ async function _assignmentForm(title, submitLabel, initial, onSubmit){
     onSubmit:onSubmit
   });
 }
+/** Normalise assignment form values into the shape the API expects. */
 function _assignmentPayload(v){
   return { title:v.title, description:v.description, course:v.course, batch:v.batch, dueDate:v.dueDate,
     type:v.type, maxScore:v.maxScore?Number(v.maxScore):100, difficulty:v.difficulty, status:'published' };
 }
+/** Create a new assignment and publish it so students can see it. */
 function addAssignment(){
   _assignmentForm('New Assignment','Assign to Students', {}, async function(v){
     if(_demoMode){ toast('Assignment created (demo)','success'); return refreshPage(); }
@@ -92,6 +103,7 @@ function addAssignment(){
     toast('Assignment created — now visible to students','success'); refreshPage();
   });
 }
+/** Edit an existing assignment. */
 function editAssignment(id){
   _assignmentForm('Edit Assignment','Save Changes', _assignmentsCache[id]||{}, async function(v){
     if(_demoMode){ toast('Assignment updated (demo)','success'); return refreshPage(); }
@@ -99,12 +111,14 @@ function editAssignment(id){
     toast('Assignment updated','success'); refreshPage();
   });
 }
+/** Delete an assignment and all its submissions (behind a confirm). */
 function deleteAssignment(id){
   confirmModal('Delete Assignment','Delete this assessment and all its submissions?','Delete',async function(){
     if(_demoMode){ toast('Assignment deleted (demo)','success'); return refreshPage(); }
     await apiFetch('/assignments/'+id,{method:'DELETE'}); toast('Assignment deleted','success'); refreshPage();
   });
 }
+/** Mentor view: list every student's submission for an assignment, each with inline score + feedback inputs. */
 async function viewSubmissions(id){
   _buildModal('Submissions', '<div style="padding:2rem">'+loadingHTML()+'</div>', '');
   var a = _assignmentsCache[id] || {};
@@ -136,6 +150,7 @@ async function viewSubmissions(id){
   _buildModal('Submissions — '+(a.title||'Assessment'), body, '<button class="btn-primary" onclick="closeModal()">Close</button>');
   var box=document.querySelector('#modalOverlay .modal-box'); if(box) box.style.maxWidth='640px';
 }
+/** Save a score + feedback for one submission and push it back to the student. */
 async function gradeSubmission(aid, sid){
   var scEl=document.getElementById('sc_'+sid), fbEl=document.getElementById('fb_'+sid);
   var score=scEl?scEl.value:''; var fb=fbEl?fbEl.value:'';
@@ -149,6 +164,7 @@ async function gradeSubmission(aid, sid){
 }
 
 // ───────────────────────── PROGRESS TRACKING ─────────────────────────
+/** Mark a course module complete/incomplete, updating the student's overall progress percentage. */
 async function toggleModule(eid, mid, completed){
   if(_demoMode){ toast(completed?'Module marked complete (demo)':'Marked incomplete (demo)','success'); return; }
   try{
@@ -159,6 +175,7 @@ async function toggleModule(eid, mid, completed){
 }
 
 // ───────────────────────── GAMIFICATION / LEADERBOARD ─────────────────────────
+/** Compute the achievement badges (Topper, Perfect Attendance, Fast Learner…) a leaderboard row has earned. */
 function _badgesFor(r){
   var b=[];
   if(r.rank===1) b.push('&#129351; Topper');
@@ -168,6 +185,7 @@ function _badgesFor(r){
   if(r.progress>=100) b.push('&#127891; Course Complete');
   return b;
 }
+/** Render the points leaderboard; highlights the current student and shows their personal rank banner. */
 async function renderLeaderboard(role){
   var res = await apiFetch('/users/leaderboard');
   var rows = res.data || [];
@@ -195,6 +213,7 @@ async function renderLeaderboard(role){
 }
 
 // ───────────────────────── LEAD → STUDENT CONVERSION ─────────────────────────
+/** Convert a CRM lead into a real student account (pre-fills the lead's details, marks it converted, then shows credentials). */
 function convertLead(id){
   var l = _leadsCache.find ? null : null;
   var lead = (_leadsCache && _leadsCache.filter) ? _leadsCache.filter(function(x){return x._id===id;})[0] : null;
@@ -219,6 +238,7 @@ function convertLead(id){
 }
 
 // ───────────────────────── BATCH ENROLLMENT (admin) ─────────────────────────
+/** Batch management modal: lists enrolled students with remove/enroll actions. */
 async function manageBatch(id){
   _buildModal('Manage Batch', '<div style="padding:2rem">'+loadingHTML()+'</div>', '');
   var batch={}, enrollments=[];
@@ -245,6 +265,7 @@ async function manageBatch(id){
   _buildModal('Manage: '+(batch.name||'Batch'), body, foot);
   var box=document.querySelector('#modalOverlay .modal-box'); if(box) box.style.maxWidth='560px';
 }
+/** Enroll a chosen student into a batch (also adds them to its course and mentor). */
 async function enrollStudentModal(batchId){
   var students = _demoMode ? [{value:'st1',label:'Arjun Reddy'},{value:'st2',label:'Sneha Patel'}] : await loadOptions('/users?role=student&limit=300',fullName);
   formModal({
@@ -257,6 +278,7 @@ async function enrollStudentModal(batchId){
     }
   });
 }
+/** Remove a student from a batch and its course (behind a confirm). */
 function unenrollStudent(batchId, studentId){
   confirmModal('Remove Student','Remove this student from the batch (and its course)?','Remove',async function(){
     if(_demoMode){ toast('Student removed (demo)','success'); setTimeout(function(){ manageBatch(batchId); },70); return; }
@@ -265,6 +287,7 @@ function unenrollStudent(batchId, studentId){
   });
 }
 // Open batch management filtered by a mentor or course (assign-to-mentor / add-to-course)
+/** Open batch management filtered by a mentor or course — resolves to the single matching batch, or asks which one. */
 async function manageBatchFor(kind, id, label){
   if(_demoMode){ manageBatch('demo'); return; }
   var res = await apiFetch('/batches?limit=200');
@@ -283,6 +306,7 @@ async function manageBatchFor(kind, id, label){
 }
 
 
+/** Render the profile page: editable personal info; students also get degree/resume fields and live course/attendance/progress stats. */
 async function renderProfile(role) {
   var cfg = ROLES[role];
   var u = _currentUser || {};
@@ -342,6 +366,7 @@ async function renderProfile(role) {
   </div>`;
 }
 
+/** Persist profile edits, using dot-notation keys so we patch individual studentProfile fields without clobbering the whole object. */
 async function saveProfile() {
   var msg = document.getElementById('profMsg');
   var body = {
@@ -370,8 +395,11 @@ async function saveProfile() {
 
 
 var _sessionsCache = {};
+/** Escape a string so it's safe inside a single-quoted inline onclick argument. */
 function _escArg(s){ return (s||'').replace(/'/g,'&#39;'); }
+/** Convert an ISO timestamp into the value format an <input type=datetime-local> expects. */
 function toLocalInput(iso){ if(!iso) return ''; var d=new Date(iso); var p=function(n){return String(n).padStart(2,'0');}; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes()); }
+/** Build the mentor/admin action row for a session (start/complete/copy-link/recording/edit/delete) based on its current status. */
 function sessionManageRow(s){
   var st=(s.status||'scheduled').toLowerCase();
   var sm='style="padding:.4rem .8rem;font-size:.72rem"';
@@ -387,6 +415,7 @@ function sessionManageRow(s){
   b.push('<button class="continue-btn" style="padding:.4rem .8rem;font-size:.72rem;background:transparent;color:var(--red);border:1.5px solid var(--line)" onclick="deleteSession(\''+s._id+'\',\''+_escArg(s.title)+'\')">Delete</button>');
   return '<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.7rem">'+b.join('')+'</div>';
 }
+/** Render the sessions list; mentors/admins get management controls, students get join buttons. */
 async function renderSessions(role){
   var res = await apiFetch('/sessions?limit=50');
   var sessions = res.data || [];
@@ -420,20 +449,24 @@ async function renderSessions(role){
     '</div>';
   }).join('') : '<div style="padding:1.5rem;color:var(--muted);font-size:.85rem">No sessions scheduled.</div>') + '</div>';
 }
+/** Copy a meeting link to the clipboard. */
 function copyLink(url){
   if(navigator.clipboard) navigator.clipboard.writeText(url).then(function(){toast('Meeting link copied','success');},function(){toast('Link: '+url,'info');});
   else toast('Link: '+url,'info');
 }
+/** Mark a scheduled session as live. */
 async function startSession(id){
   if(_demoMode){ toast('Session is now live (demo)','success'); return refreshPage(); }
   try{ await apiFetch('/sessions/'+id+'/start',{method:'PATCH'}); toast('Session is now live','success'); refreshPage(); }
   catch(e){ toast(e.message,'error'); }
 }
+/** Mark a live session complete (which unlocks recording upload). */
 async function completeSession(id){
   if(_demoMode){ toast('Session marked complete (demo)','success'); return refreshPage(); }
   try{ await apiFetch('/sessions/'+id+'/complete',{method:'PATCH'}); toast('Session marked complete — you can now upload a recording','success'); refreshPage(); }
   catch(e){ toast(e.message,'error'); }
 }
+/** Generate a Google-Meet-style link and save it onto the session. */
 function generateMeetLink(id){
   var link='https://meet.google.com/plx-'+Math.random().toString(36).slice(2,6)+'-'+Math.random().toString(36).slice(2,6);
   if(_demoMode){ toast('Meeting link generated (demo)','success'); return refreshPage(); }
@@ -441,6 +474,7 @@ function generateMeetLink(id){
     .then(function(){ toast('Meeting link generated & saved','success'); refreshPage(); })
     .catch(function(e){ toast(e.message,'error'); });
 }
+/** Edit a session's title, time, meeting link or venue. */
 function editSession(id){
   var s=_sessionsCache[id]||{};
   formModal({
@@ -459,6 +493,7 @@ function editSession(id){
     }
   });
 }
+/** Attach or update a recording URL on a completed session so the batch's students can watch it. */
 function addRecording(id){
   var s=_sessionsCache[id]||{};
   formModal({
@@ -473,6 +508,7 @@ function addRecording(id){
     }
   });
 }
+/** Delete a session (behind a confirm). */
 function deleteSession(id, title){
   confirmModal('Delete Session','Delete <b>'+(title||'this session')+'</b>? This cannot be undone.','Delete',async function(){
     if(_demoMode){ toast('Session deleted (demo)','success'); return refreshPage(); }
@@ -481,6 +517,7 @@ function deleteSession(id, title){
 }
 
 // ── Online-join requests (mentor/admin) ──
+/** Mentor/admin view of students' online-join requests, split into pending (actionable) and history. */
 async function renderJoinRequests(){
   var res = await apiFetch('/join-requests');
   var reqs = res.data || [];
@@ -507,6 +544,7 @@ async function renderJoinRequests(){
       :'<div style="padding:1.5rem;color:var(--muted);font-size:.85rem">No pending requests right now &#127881;</div>')+
     (resolved.length?'<div class="section-head" style="margin-top:1.4rem"><span class="section-title">History</span></div><div class="ann-list">'+resolved.map(function(r){return card(r,false);}).join('')+'</div>':'');
 }
+/** Approve an online-join request and share a meeting link with the student. */
 function approveRequest(id){
   var link='https://meet.google.com/plx-'+Math.random().toString(36).slice(2,6)+'-'+Math.random().toString(36).slice(2,6);
   formModal({ title:'Approve &amp; Share Meeting Link', submitLabel:'Approve',
@@ -518,6 +556,7 @@ function approveRequest(id){
     }
   });
 }
+/** Reject an online-join request (behind a confirm). */
 function rejectRequest(id){
   confirmModal('Reject Request','Reject this online-join request?','Reject',async function(){
     if(_demoMode){ toast('Request rejected','success'); return refreshPage(); }
@@ -526,6 +565,7 @@ function rejectRequest(id){
   });
 }
 
+/** Admin mentors directory: specialization, assigned-student counts, and manage/view/delete actions. */
 async function renderMentors(){
   var res = await apiFetch('/users?role=mentor&limit=50');
   var mentors = res.data || [];
@@ -548,6 +588,7 @@ async function renderMentors(){
     '<div class="course-list">'+cards+'</div>';
 }
 
+/** Batches grid with capacity progress bars; admins also get manage/students actions. */
 async function renderBatches(role){
   var res = await apiFetch('/batches?limit=50');
   var batches = res.data || [];
@@ -580,6 +621,7 @@ async function renderBatches(role){
 }
 
 var _resourcesCache = {};
+/** Learning resources grouped by course; students are view-only, staff can add/edit/delete. */
 async function renderResources(role){
   var res = await apiFetch('/resources?limit=50');
   var items = res.data || [];
@@ -628,6 +670,7 @@ async function renderResources(role){
   return '<div class="section-head"><span class="section-title">Learning Resources</span>'+addBtn+'</div>'+
     note + '<div class="course-list">'+rows+'</div>';
 }
+/** Edit a resource's title/type/URL/description. */
 function editResource(id){
   var r = _resourcesCache[id] || {};
   formModal({
@@ -647,6 +690,7 @@ function editResource(id){
     }
   });
 }
+/** Delete a resource (behind a confirm). */
 function deleteResource(id, title){
   confirmModal('Delete Resource', 'Delete <b>'+(title||'this resource')+'</b>? This action cannot be undone.', 'Delete', async function(){
     if(_demoMode){ toast('Resource deleted (demo)','success'); return refreshPage(); }
@@ -654,6 +698,7 @@ function deleteResource(id, title){
     toast('Resource deleted','success'); refreshPage();
   });
 }
+/** In-app, view-only viewer for a resource — video player, PDF/image iframe, or the Google Docs viewer for other files. */
 function viewResource(url, title, type){
   if(!url){ toast('Preview not available for this resource','info'); return; }
   type = (type||'other').toLowerCase();
@@ -669,6 +714,7 @@ function viewResource(url, title, type){
   var box = document.querySelector('#modalOverlay .modal-box'); if(box) box.style.maxWidth = '900px';
 }
 
+/** Delete a CRM lead permanently (behind a confirm). */
 function deleteLead(id){
   confirmModal('Delete Lead','Remove this lead permanently? This cannot be undone.','Delete',async function(){
     if(_demoMode){ toast('Lead removed (demo)','success'); return refreshPage(); }
@@ -676,6 +722,7 @@ function deleteLead(id){
     toast('Lead removed','success'); refreshPage();
   });
 }
+/** CRM leads page: status summary cards plus a table with inline status change, convert-to-student and delete. */
 async function renderLeads(){
   var res = await apiFetch('/leads?limit=50');
   var leads = res.data || [];
@@ -706,6 +753,7 @@ async function renderLeads(){
     '<div class="course-list" style="margin-top:1rem">'+rows+'</div>';
 }
 
+/** Payments page — students see their own fee summary + history; admins see all payments and can record new ones. */
 async function renderPayments(role){
   if (role === 'student') {
     var sumRes = await apiFetch('/payments/me/summary');
@@ -752,6 +800,7 @@ async function renderPayments(role){
     '<div class="course-list" style="margin-top:1rem">'+rows+'</div>';
 }
 
+/** Certificates page; students see their own, admins can issue. Caches metadata so the PDF download works offline. */
 async function renderCertificates(role){
   // /certificates is role-scoped (students see only their own) and returns an array
   var res = await apiFetch('/certificates?limit=50');
@@ -786,6 +835,7 @@ async function renderCertificates(role){
     '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem">'+cards+'</div>';
 }
 
+/** Reviews/feedback page with average rating; students can write reviews, staff can respond. */
 async function renderReviews(role){
   var res = await apiFetch('/reviews?limit=50');
   var reviews = res.data || [];
@@ -814,6 +864,7 @@ async function renderReviews(role){
     '<div class="ann-list" style="margin-top:1rem">'+rows+'</div>';
 }
 
+/** Admin analytics dashboard: KPI cards, a monthly-enrollments bar chart, course distribution, and placement + revenue summaries. */
 async function renderReports(){
   var [ov, monthly, dist, plc, rev] = await Promise.all([
     apiFetch('/analytics/overview'),
@@ -877,6 +928,7 @@ async function renderReports(){
   '</div>';
 }
 
+/** Admin settings page (institute profile, notification toggles, security, account). */
 function renderSettings(){
   var u = _currentUser || {};
   var name = ((u.firstName||'')+' '+(u.lastName||'')).trim() || 'Administrator';
@@ -913,6 +965,7 @@ function renderSettings(){
   '</div>';
 }
 
+/** Student support center: quick contact links plus a live-chat launcher. */
 function renderSupport(){
   return `
   <div class="section-head"><span class="section-title">Support Center</span></div>
@@ -931,12 +984,15 @@ function renderSupport(){
 
 // ── Live chat with admin/support ──
 var _chatMsgs = null;
+/** Render the current support-chat message thread as HTML. */
 function _chatThreadHTML(){
   return _chatMsgs.map(function(m){
     return '<div class="chat-msg '+(m.from==='me'?'me':'admin')+'">'+m.text+'</div>';
   }).join('');
 }
+/** Re-render the chat thread and scroll to the newest message. */
 function refreshChat(){ var t=document.getElementById('chatThread'); if(t){ t.innerHTML=_chatThreadHTML(); t.scrollTop=t.scrollHeight; } }
+/** Open the support live-chat modal (seeds a greeting message on first open). */
 function openLiveChat(){
   if(!_chatMsgs) _chatMsgs = [{from:'admin', text:'Hi &#128075; You are chatting with Placeonix Support. How can we help you today?'}];
   var body = '<div id="chatThread" class="chat-thread">'+_chatThreadHTML()+'</div>'+
@@ -946,6 +1002,7 @@ function openLiveChat(){
   refreshChat();
   setTimeout(function(){ var i=document.getElementById('chatInput'); if(i) i.focus(); }, 60);
 }
+/** Send a chat message, then generate a canned support auto-reply based on keywords. */
 function sendChat(){
   var i=document.getElementById('chatInput'); if(!i) return;
   var v=(i.value||'').trim(); if(!v) return;

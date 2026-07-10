@@ -1,9 +1,16 @@
 /*
- * Placeonix Hub — Entity CRUD: users, leads, batches, resources, courses, sessions,
- * certificates, reviews, payments, settings.
- * Part of the dashboard app; loaded after core.js (see the HTML).
+ * Placeonix Hub — Entities namespace.
+ * The "add / edit / view" surface for every core record an admin or mentor
+ * manages: users, leads, batches, resources, courses, sessions, certificates,
+ * reviews, payments and account settings. Each function opens a formModal (from
+ * the UI namespace), POSTs/PATCHes via apiFetch, then refreshPage()s. Every
+ * action also has a _demoMode branch so the portal stays usable with no backend.
+ * Loaded after core.js + ui.js.
  */
+
 // ───────────────────────── USERS (students / mentors) ─────────────────────────
+
+/** Create a student/mentor account, then surface the login credentials to hand over. */
 function addUser(role){
   var label = role==='mentor'?'Mentor':role==='student'?'Student':'User';
   formModal({
@@ -27,7 +34,11 @@ function addUser(role){
     }
   });
 }
+
+// Remembers the last-created credentials so the "Copy" button in the modal has something to copy.
 var _lastCreds = { email:'', password:'' };
+
+/** Show the just-created account's email + password in a copyable modal (admins forget to note them otherwise). */
 function showCredentials(label, email, password){
   _lastCreds = { email:email, password:password };
   var body = '<div style="font-size:.85rem;color:var(--ink2);line-height:1.6;margin-bottom:.9rem">&#9989; '+label+' account created. Share these login details:</div>'+
@@ -39,11 +50,15 @@ function showCredentials(label, email, password){
   var foot = '<button class="btn-secondary" onclick="copyCreds()">&#10697; Copy</button><button class="btn-primary" onclick="closeModal()">Done</button>';
   _buildModal('Login Details', body, foot);
 }
+
+/** Copy the last-shown credentials to the clipboard (falls back to a toast if clipboard is blocked). */
 function copyCreds(){
   var txt = 'Placeonix login\nEmail: '+_lastCreds.email+'\nPassword: '+_lastCreds.password;
   if(navigator.clipboard){ navigator.clipboard.writeText(txt).then(function(){ toast('Login details copied','success'); }, function(){ toast('Could not copy','error'); }); }
   else { toast('Email: '+_lastCreds.email+' / Password: '+_lastCreds.password,'info'); }
 }
+
+/** Permanently delete a user account (behind a red confirm dialog — it's irreversible). */
 function deleteUserAccount(id, name){
   confirmModal('Delete '+(name||'user')+'?', 'This permanently removes the account - they can no longer log in. This cannot be undone.', 'Delete', async function(){
     if(_demoMode){ toast('Account removed (demo)','success'); return refreshPage(); }
@@ -51,6 +66,8 @@ function deleteUserAccount(id, name){
     toast((name||'Account')+' removed','success'); refreshPage();
   });
 }
+
+/** Edit a user's name/phone/status; pulls from cache first, else fetches the record. */
 async function editUser(id){
   var u = (_studentsCache||[]).filter(function(x){return x._id===id;})[0];
   if(!u && !_demoMode){ try{ var r=await apiFetch('/users/'+id); u=(r.data&&r.data.user)||r.data; }catch(e){} }
@@ -71,6 +88,8 @@ async function editUser(id){
     }
   });
 }
+
+/** One "view details" modal for several record kinds (user/batch/course/drive) — normalises the varied API wrappers. */
 async function viewEntity(kind, id){
   var path = kind==='user'?'/users/'+id : kind==='batch'?'/batches/'+id : kind==='course'?'/courses/'+id : kind==='drive'?'/placements/'+id : null;
   if(!path){ toast('Details unavailable','info'); return; }
@@ -96,6 +115,8 @@ async function viewEntity(kind, id){
 }
 
 // ───────────────────────── LEADS ─────────────────────────
+
+/** Capture a new admissions lead (name, contact, course interest, source). */
 function addLead(){
   formModal({
     title:'Add Lead', submitLabel:'Add Lead',
@@ -116,6 +137,8 @@ function addLead(){
 }
 
 // ───────────────────────── BATCHES ─────────────────────────
+
+/** Create a batch — loads courses + mentors first so they can be picked from dropdowns. */
 async function addBatch(){
   var courses = _demoMode ? _DEMO_COURSES.map(function(c){return{value:c._id,label:c.title};}) : await loadOptions('/courses?limit=100',function(c){return c.title;});
   var mentors = _demoMode ? _DEMO_MENTORS.map(function(m){return{value:m._id,label:fullName(m)};}) : await loadOptions('/users?role=mentor&limit=100',fullName);
@@ -141,6 +164,8 @@ async function addBatch(){
 }
 
 // ───────────────────────── RESOURCES ─────────────────────────
+
+/** Add a shared learning resource (link/video/document) for students. */
 function addResource(){
   formModal({
     title:'Add Resource', submitLabel:'Add Resource',
@@ -159,6 +184,8 @@ function addResource(){
 }
 
 // ───────────────────────── COURSES ─────────────────────────
+
+/** Create a course; derives a short description + zero-fee default so the record is valid on first save. */
 function addCourse(){
   formModal({
     title:'Add Course', submitLabel:'Create Course',
@@ -176,9 +203,13 @@ function addCourse(){
     }
   });
 }
+
+/** Lightweight "opening course…" acknowledgement from a course card (content player is out of scope). */
 function startLearning(title){ toast('Loading "'+(title||'course')+'"…','info'); }
 
 // ───────────────────────── SESSIONS ─────────────────────────
+
+/** Schedule a live class for a batch (title, time window, optional meeting link). */
 async function addSession(){
   var batches = _demoMode ? _DEMO_BATCHES.map(function(b){return{value:b._id,label:b.name};}) : await loadOptions('/batches?limit=100',function(b){return b.name;});
   formModal({
@@ -199,10 +230,16 @@ async function addSession(){
 }
 
 // ───────────────────────── CERTIFICATES ─────────────────────────
+
+/** Nudge the admin toward the right flow — certificates are issued from a completed enrollment, not ad-hoc. */
 function issueCertificate(){
   toast('Issuing requires a completed enrollment — open the student to issue.','info');
 }
+
+// Cache of certificate metadata keyed by number, so downloadCert can render without a refetch.
 var _certsCache = {};
+
+/** Open a print-ready certificate in a new tab (self-contained HTML → "Save as PDF"). */
 function downloadCert(num){
   var c = _certsCache[num] || { num:num, course:'Course', holder:(_currentUser?(_currentUser.firstName+' '+_currentUser.lastName):''), date:fmtDate(new Date().toISOString()), grade:'' };
   var w = window.open('', '_blank');
@@ -236,6 +273,8 @@ function downloadCert(num){
     '</body></html>';
   w.document.write(html); w.document.close();
 }
+
+/** Public certificate check by number — shows holder/course/status in a detail modal. */
 async function verifyCert(num){
   if(!num){ toast('No certificate number','error'); return; }
   _buildModal('Verify Certificate', loadingHTML(), '');
@@ -248,6 +287,8 @@ async function verifyCert(num){
 }
 
 // ───────────────────────── REVIEWS ─────────────────────────
+
+/** Student feedback form — builds the "what am I reviewing" list from the student's own enrollments (courses + mentors). */
 async function writeReview(){
   var targets=[];
   if(_demoMode){
@@ -279,6 +320,8 @@ async function writeReview(){
     }
   });
 }
+
+/** Mentor/admin public reply to a review (posts under the original feedback). */
 function respondReview(id){
   formModal({
     title:'Respond to Review', submitLabel:'Post Response',
@@ -292,6 +335,8 @@ function respondReview(id){
 }
 
 // ───────────────────────── PAYMENTS ─────────────────────────
+
+/** Student-facing "pay my fees" form (records the payment against their own account). */
 function payNow(amount){
   formModal({
     title:'Pay Fees', submitLabel:'Pay ₹'+Number(amount||0).toLocaleString('en-IN'),
@@ -307,6 +352,8 @@ function payNow(amount){
     }
   });
 }
+
+/** Admin record-payment step 1: pick the student, then load their enrollments to bill against. */
 async function recordPayment(){
   var students = _demoMode ? [{value:'demo',label:'Arjun Reddy'}] : await loadOptions('/users?role=student&limit=200',fullName);
   formModal({
@@ -328,6 +375,8 @@ async function recordPayment(){
     }
   });
 }
+
+/** Admin record-payment step 2: enrollment + amount + method, then post the completed payment. */
 function recordPaymentStep2(enrOptions){
   formModal({
     title:'Record Payment — Step 2', submitLabel:'Record Payment',
@@ -345,8 +394,14 @@ function recordPaymentStep2(enrOptions){
 }
 
 // ───────────────────────── SETTINGS ─────────────────────────
+
+/** Flip a UI preference toggle and confirm with a toast (client-side only for now). */
 function toggleSwitch(el){ el.classList.toggle('on'); toast('Setting '+(el.classList.contains('on')?'enabled':'disabled'),'success'); }
+
+/** Acknowledge a settings save (settings are cosmetic/local at this stage). */
 function saveSettings(){ toast('Settings saved successfully','success'); }
+
+/** Change the signed-in user's password, enforcing the 8-char minimum before hitting the API. */
 function changePassword(){
   formModal({
     title:'Change Password', submitLabel:'Update Password',

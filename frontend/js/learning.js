@@ -1,9 +1,14 @@
 /*
- * Placeonix Hub — Learning & schedule: mock interviews, alumni, office hours, dashboard,
- * courses, student "My Learning", attendance, placement drives, bulk import.
- * Part of the dashboard app; loaded after core.js (see the HTML).
+ * Placeonix Hub — Learning namespace.
+ * The learning-and-schedule surface of the portal: role dashboards, the course
+ * catalog and student "My Learning", class schedules, attendance (student view +
+ * admin overview + mark-attendance), assessments listing, placement drives &
+ * applicants, announcements, mock interviews, alumni showcase, office hours, and
+ * bulk student import. Loaded after core.js + ui.js (uses apiFetch, formModal,
+ * toast, getCourseStyle, etc.).
  */
 // ───────────────────────── MOCK INTERVIEWS ─────────────────────────
+/** Render the mock-interviews page: summary stats + list; staff schedule/record feedback, students view their feedback. */
 async function renderMockInterviews(role){
   var res = await apiFetch('/mock-interviews').catch(function(){ return {data:[]}; });
   var mocks = res.data || [];
@@ -38,6 +43,7 @@ async function renderMockInterviews(role){
   }).join('');
   return head+stats+'<div class="course-list">'+rows+'</div>';
 }
+/** Schedule a mock interview for a student (mentors pick their own students; admins can also assign an interviewer mentor). */
 async function scheduleMock(){
   var students;
   if(_demoMode){ students=[{value:'demo',label:'Arjun Reddy'}]; }
@@ -73,6 +79,7 @@ async function scheduleMock(){
     }
   });
 }
+/** Record or edit a mock interview's feedback (score, strengths, improvements, notes). */
 async function recordMock(id){
   var m={};
   if(!_demoMode){ try{ m=((await apiFetch('/mock-interviews')).data||[]).filter(function(x){return String(x._id)===String(id);})[0]||{}; }catch(e){} }
@@ -92,6 +99,7 @@ async function recordMock(id){
     }
   });
 }
+/** Student's read-only view of their mock-interview feedback. */
 async function viewMockFeedback(id){
   try{
     var m=((await apiFetch('/mock-interviews')).data||[]).filter(function(x){return String(x._id)===String(id);})[0]||{};
@@ -105,6 +113,7 @@ async function viewMockFeedback(id){
     _buildModal('Feedback — '+escHtml(m.title||'Mock'), body, '<button class="btn-primary" onclick="closeModal()">Close</button>');
   }catch(e){ toast(e.message,'error'); }
 }
+/** Delete a mock interview (behind a confirm). */
 function deleteMock(id){
   confirmModal('Delete Mock Interview','Remove this mock interview?','Delete',async function(){
     if(_demoMode){ toast('Removed (demo)','success'); return refreshPage(); }
@@ -113,6 +122,7 @@ function deleteMock(id){
   });
 }
 // ───────────────────────── ALUMNI SHOWCASE ─────────────────────────
+/** Render the alumni success-stories showcase; admins can add/edit/delete profiles. */
 async function renderAlumni(role){
   var res=await apiFetch('/alumni').catch(function(){return {data:[]};});
   var items=res.data||[];
@@ -135,6 +145,7 @@ async function renderAlumni(role){
   }).join('');
   return head+'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem">'+cards+'</div>';
 }
+/** Shared add/edit alumni form. */
 function _alumniForm(title,initial,onSubmit){
   initial=initial||{};
   formModal({title:title,submitLabel:'Save',fields:[
@@ -151,13 +162,16 @@ function _alumniForm(title,initial,onSubmit){
     {name:'featured',label:'Feature on showcase?',type:'select',value:initial.featured?'yes':'no',options:[{value:'no',label:'No'},{value:'yes',label:'Yes'}]}
   ],onSubmit:onSubmit});
 }
+/** Coerce alumni form values (numbers, featured flag) into the API payload shape. */
 function _alumniPayload(v){ v.packageLPA=v.packageLPA?Number(v.packageLPA):undefined; v.placedYear=v.placedYear?Number(v.placedYear):undefined; v.featured=v.featured==='yes'; return v; }
+/** Add an alumni profile. */
 function addAlumni(){
   _alumniForm('Add Alumni',{},async function(v){ v=_alumniPayload(v);
     if(_demoMode){toast('Alumni added (demo)','success');return refreshPage();}
     await apiFetch('/alumni',{method:'POST',body:JSON.stringify(v)}); toast('Alumni added','success');refreshPage();
   });
 }
+/** Edit an existing alumni profile. */
 async function editAlumni(id){
   var a={}; if(!_demoMode){try{a=((await apiFetch('/alumni')).data||[]).filter(function(x){return String(x._id)===String(id);})[0]||{};}catch(e){}}
   _alumniForm('Edit Alumni',a,async function(v){ v=_alumniPayload(v);
@@ -165,6 +179,7 @@ async function editAlumni(id){
     await apiFetch('/alumni/'+id,{method:'PATCH',body:JSON.stringify(v)}); toast('Alumni updated','success');refreshPage();
   });
 }
+/** Delete an alumni profile (behind a confirm). */
 function deleteAlumni(id){
   confirmModal('Delete Alumni','Remove this alumni profile?','Delete',async function(){
     if(_demoMode){toast('Removed (demo)','success');return refreshPage();}
@@ -172,6 +187,7 @@ function deleteAlumni(id){
   });
 }
 // ───────────────────────── OFFICE HOURS ─────────────────────────
+/** Office-hours page: mentors/admins manage slots, students book or cancel 1:1 time. */
 async function renderOfficeHours(role){
   var res=await apiFetch('/office-hours').catch(function(){return {data:[]};});
   var slots=res.data||[];
@@ -204,6 +220,7 @@ async function renderOfficeHours(role){
   }).join('')+'</div>':'<div style="padding:2rem;text-align:center;color:var(--muted)">No open slots right now. Check back soon.</div>';
   return head+mineHtml+availHtml;
 }
+/** Mentor adds an office-hour availability slot. */
 function addSlot(){
   formModal({title:'Add Office-Hour Slot',submitLabel:'Add Slot',fields:[
     {name:'startTime',label:'Start Time',type:'datetime-local',required:true},
@@ -217,18 +234,21 @@ function addSlot(){
     await apiFetch('/office-hours',{method:'POST',body:JSON.stringify(v)}); toast('Slot added','success');refreshPage();
   }});
 }
+/** Student books an available office-hour slot. */
 function bookSlot(id){
   formModal({title:'Book Slot',submitLabel:'Confirm Booking',fields:[{name:'note',label:'What do you want to discuss? (optional)',type:'textarea'}],onSubmit:async function(v){
     if(_demoMode){toast('Booked (demo)','success');return refreshPage();}
     await apiFetch('/office-hours/'+id+'/book',{method:'POST',body:JSON.stringify({note:v.note})}); toast('Slot booked!','success');refreshPage();
   }});
 }
+/** Student cancels their office-hour booking, releasing the slot. */
 function cancelBooking(id){
   confirmModal('Cancel Booking','Release this slot?','Cancel Booking',async function(){
     if(_demoMode){toast('Cancelled (demo)','success');return refreshPage();}
     await apiFetch('/office-hours/'+id+'/cancel',{method:'POST'}); toast('Booking cancelled','success');refreshPage();
   });
 }
+/** Mentor deletes an office-hour slot (behind a confirm). */
 function deleteSlot(id){
   confirmModal('Delete Slot','Remove this slot?','Delete',async function(){
     if(_demoMode){toast('Removed (demo)','success');return refreshPage();}
@@ -236,6 +256,7 @@ function deleteSlot(id){
   });
 }
 var _attDayCache={};
+/** Build the admin attendance overview for a date: day totals, per-batch breakdown, and mentor activity. */
 async function attOverviewHTML(dateStr){
   var d = dateStr || new Date().toISOString().slice(0,10);
   var an={};
@@ -262,7 +283,9 @@ async function attOverviewHTML(dateStr){
   }).join('')+'</div>':'';
   return stat+'<div class="learn-sec-title">By Batch</div><div class="course-list">'+batchRows+'</div>'+mentorRows;
 }
+/** Reload the attendance overview into its container when the selected date changes. */
 async function attOverviewLoad(dateStr){ var box=document.getElementById('attDayBox'); if(box){ box.innerHTML=loadingHTML(); box.innerHTML=await attOverviewHTML(dateStr); } }
+/** Open a modal with per-student attendance for one batch on a date (from the cached overview data). */
 function attDayBatchDetail(batchId,date){
   var b=_attDayCache[batchId]; if(!b) return;
   var rows=(b.students||[]).map(function(s){
@@ -271,6 +294,7 @@ function attDayBatchDetail(batchId,date){
   }).join('')||'<div style="color:var(--muted)">No records.</div>';
   _buildModal(escHtml(b.batchName)+' — '+fmtDate(date), rows, '<button class="btn-primary" onclick="closeModal()">Close</button>');
 }
+/** Course detail modal — category/fee/duration plus the curriculum module list. */
 async function viewCourseDetail(id){
   _buildModal('Course', '<div style="padding:2rem">'+loadingHTML()+'</div>', '');
   try{
@@ -295,6 +319,7 @@ async function viewCourseDetail(id){
     var box=document.querySelector('#modalOverlay .modal-box'); if(box) box.style.maxWidth='620px';
   }catch(e){ _buildModal('Course', errorHTML(e.message), '<button class="btn-primary" onclick="closeModal()">Close</button>'); }
 }
+/** Modal listing a batch's enrolled students with their progress bars. */
 async function batchStudents(id){
   _buildModal('Batch Students', '<div style="padding:2rem">'+loadingHTML()+'</div>', '');
   try{
@@ -313,10 +338,12 @@ async function batchStudents(id){
     var box=document.querySelector('#modalOverlay .modal-box'); if(box) box.style.maxWidth='560px';
   }catch(e){ _buildModal('Batch Students', errorHTML(e.message), '<button class="btn-primary" onclick="closeModal()">Close</button>'); }
 }
+/** Update a lead's pipeline status inline from the dropdown in the leads table. */
 function updateLeadStatus(id, status){
   if(_demoMode){ toast('Status updated (demo)','success'); return; }
   apiFetch('/leads/'+id,{method:'PATCH',body:JSON.stringify({status:status})}).then(function(){ toast('Lead moved to '+status,'success'); refreshPage(); }).catch(function(e){ toast(e.message,'error'); });
 }
+/** Dashboard entry point — dispatches to the student/mentor/admin dashboard for the current role. */
 function renderDashboard(role) {
   if (role === 'student') return renderStudentDash();
   if (role === 'mentor') return renderMentorDash();
@@ -324,6 +351,7 @@ function renderDashboard(role) {
 }
 
 
+/** Build the student dashboard: stats, next class, progress, announcements and latest mock score. */
 async function renderStudentDash() {
   var [statsRes, enrRes, annRes, sessRes, attRes, mockRes] = await Promise.all([
     apiFetch('/users/me/stats'),
@@ -448,6 +476,7 @@ async function renderStudentDash() {
   }).join('')+'</div>' : ''}`;
 }
 
+/** Build the mentor dashboard: assigned students, today's sessions and pending grading. */
 async function renderMentorDash() {
   var [statsRes, studentsRes, todayRes, allSessRes, reqRes] = await Promise.all([
     apiFetch('/users/me/stats'),
@@ -525,6 +554,7 @@ async function renderMentorDash() {
   </div>`;
 }
 
+/** Build the admin dashboard: institute-wide KPIs, recent activity and quick actions. */
 async function renderAdminDash() {
   var [overviewRes, studentsRes] = await Promise.all([
     apiFetch('/analytics/overview'),
@@ -581,6 +611,7 @@ async function renderAdminDash() {
   </div>`;
 }
 
+/** Render a single catalog course card (admins get view/manage, others get a view button). */
 function courseCardPremium(c, role) {
   var s = getCourseStyle(c.category);
   var tags = (c.tags && c.tags.length) ? c.tags.slice(0,3) : [];
@@ -602,11 +633,13 @@ function courseCardPremium(c, role) {
   '</div>';
 }
 
+/** Courses entry point — students see 'My Learning', staff see the full catalog. */
 async function renderCourses(role) {
   if (role === 'student') return renderMyLearning();
   return renderCatalog(role);
 }
 
+/** Course catalog with a flagship hero, category filter pills and the course grid. */
 async function renderCatalog(role) {
   var res = await apiFetch('/courses?limit=50&isPublished=true');
   var courses = res.data || [];
@@ -638,6 +671,7 @@ async function renderCatalog(role) {
     '<span style="font-size:.72rem;font-weight:600;color:var(--muted)">'+courses.length+' programs</span></span>'+addBtn+'</div>'+
     heroHTML + pills + grid;
 }
+/** Filter the catalog grid to a category (client-side show/hide) and highlight the active pill. */
 function filterCourses(cat, el){
   document.querySelectorAll('#courseGrid .course-card2').forEach(function(card){
     card.style.display = (cat==='all' || card.getAttribute('data-cat')===cat) ? '' : 'none';
@@ -647,12 +681,14 @@ function filterCourses(cat, el){
 }
 
 // ─── Student "My Learning" — only enrolled courses, with live classes / recordings ───
+/** Open a class recording in a video modal. */
 function watchRecording(url, title){
   if(!url){ toast('Recording not available yet','info'); return; }
   var body = '<div style="background:#000;border-radius:12px;overflow:hidden">'+
     '<video src="'+url+'" controls autoplay style="width:100%;display:block;max-height:60vh"></video></div>';
   _buildModal('&#127909; '+(title||'Class Recording'), body, '<button class="btn-primary" onclick="closeModal()">Close</button>');
 }
+/** Student's request to attend an offline class online for a date — creates a join-request for the mentor. */
 function requestOnline(batchId, courseTitle){
   formModal({
     title:'Request to Join Online',
@@ -669,6 +705,7 @@ function requestOnline(batchId, courseTitle){
   });
 }
 
+/** Render one class row in a student's schedule with the correct badge + action (live/join/recording/in-person/done). */
 function scheduleRow(s, isNext){
   var d = new Date(s.startTime);
   var now = Date.now();
@@ -699,12 +736,14 @@ function scheduleRow(s, isNext){
   '</div>';
 }
 
+/** Expand/collapse a course block in the My Learning view. */
 function toggleLearn(head){
   var body=head.parentElement.querySelector('.learn-body'); if(!body) return;
   var hidden = body.style.display==='none';
   body.style.display = hidden?'':'none';
   var ch=head.querySelector('.lh-chev'); if(ch) ch.style.transform = hidden?'':'rotate(-90deg)';
 }
+/** Student 'My Learning': one block per enrolled course with curriculum checkboxes and the class schedule. */
 async function renderMyLearning(){
   var [enrRes, sessRes] = await Promise.all([
     apiFetch('/users/me/enrollments'),
@@ -787,6 +826,7 @@ async function renderMyLearning(){
     '<button class="view-all" onclick="renderCatalogInto()">Browse Catalog &rarr;</button></div>'+
     blocks;
 }
+/** Swap the page body to the course catalog (used by the 'Browse Catalog' buttons). */
 async function renderCatalogInto(){
   var pagesEl = document.getElementById('pages');
   pagesEl.innerHTML = loadingHTML();
@@ -795,6 +835,7 @@ async function renderCatalogInto(){
   catch(e){ pagesEl.innerHTML = errorHTML(e.message); }
 }
 
+/** Students directory — admins see all students, mentors see only their own — with progress and actions. */
 async function renderStudents(role) {
   var res = role === 'admin'
     ? await apiFetch('/users?role=student&limit=50')
@@ -869,6 +910,7 @@ async function renderStudents(role) {
   </div>`;
 }
 
+/** Student's own attendance page: summary percentage plus record history. */
 async function renderAttendance() {
   var res = await apiFetch('/attendance/me');
   var records = (res.data && res.data.records) ? res.data.records : [];
@@ -945,10 +987,12 @@ async function renderAttendance() {
 }
 
 // ── Admin/Mentor attendance overview (per batch) ──
+/** Return the coloured badge markup for an attendance status (present/late/absent/excused). */
 function attStatusBadge(st){
   var m = { present:'b-active', absent:'b-due', late:'b-pending', excused:'b-graded' };
   return '<span class="badge '+(m[st]||'b-graded')+'">'+st+'</span>';
 }
+/** Render a compact attendance-records list. */
 function attBoxHTML(recs){
   var sum = { present:0, absent:0, late:0, excused:0, total:0 };
   recs.forEach(function(r){ sum[r.status]=(sum[r.status]||0)+1; sum.total++; });
@@ -968,12 +1012,14 @@ function attBoxHTML(recs){
   return cards+'<div style="background:#fff;border-radius:14px;border:1px solid var(--line);overflow:hidden;margin-top:1.2rem">'+
     '<table class="drive-table" style="width:100%"><thead><tr><th>Student</th><th>Date</th><th>Session</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
+/** Lazy-load a batch's attendance records into an expandable container. */
 async function loadBatchAtt(batchId, el){
   if(el){ document.querySelectorAll('#attPills .pill').forEach(function(p){ p.classList.remove('active'); }); el.classList.add('active'); }
   var box = document.getElementById('attBox'); if(box) box.innerHTML = loadingHTML();
   try { var res = await apiFetch('/attendance/batch/'+batchId); if(box) box.innerHTML = attBoxHTML((res.data&&res.data.records)||[]); }
   catch(e){ if(box) box.innerHTML = errorHTML(e.message); }
 }
+/** Admin/mentor attendance overview page (date picker feeding attOverviewHTML). */
 async function renderAttendanceAdmin(){
   var res = await apiFetch('/batches?limit=50');
   var batches = res.data || [];
@@ -992,6 +1038,7 @@ async function renderAttendanceAdmin(){
     pills+'<div id="attBox">'+attBoxHTML(firstRecs)+'</div>';
 }
 
+/** Mentor 'mark attendance' page: pick a batch/session, then set each student present/absent/late. */
 async function renderMarkAttendance() {
   var res = await apiFetch('/users/my-students');
   var students = (res.data && res.data.students) ? res.data.students : [];
@@ -1052,6 +1099,7 @@ async function renderMarkAttendance() {
   </div>`;
 }
 
+/** Submit the marked attendance for the whole class in one request. */
 async function saveAttendance() {
   var batchId = document.getElementById('attBatch') ? document.getElementById('attBatch').value : null;
   var date = document.getElementById('attDate') ? document.getElementById('attDate').value : null;
@@ -1077,6 +1125,7 @@ async function saveAttendance() {
 }
 
 var _assignmentsCache = {};
+/** Assessments page: staff see management cards, students see submit cards (and a pending-count nav badge). */
 async function renderAssignments(role){
   var res = await apiFetch('/assignments?limit=50');
   var assignments = res.data || [];
@@ -1088,6 +1137,7 @@ async function renderAssignments(role){
   return head+'<div class="course-list">'+assignments.map(function(a){ return canManage?mentorAssignmentCard(a):studentAssignmentCard(a); }).join('')+'</div>';
 }
 
+/** Quick assignment submission via a browser prompt (legacy path; the richer form is submitWork). */
 async function submitAssignment(id) {
   var text = prompt('Enter your submission notes or GitHub link:');
   if (text === null) return;
@@ -1104,6 +1154,7 @@ async function submitAssignment(id) {
 }
 
 
+/** Placements page: drive stats + table; students apply, admins manage drives and see analytics. */
 async function renderPlacements(role) {
   var drivesRes = await apiFetch('/placements?limit=20');
   var drives = drivesRes.data || [];
@@ -1168,7 +1219,9 @@ async function renderPlacements(role) {
 }
 
 var _PLC_STAGES=[{v:'applied',l:'Applied'},{v:'shortlisted',l:'Shortlisted'},{v:'interview_scheduled',l:'Interview'},{v:'offered',l:'Offered'},{v:'placed',l:'Placed'},{v:'rejected',l:'Rejected'}];
+/** Map a placement-application stage value to its human display label. */
 function plcStageLabel(v){ var s=_PLC_STAGES.filter(function(x){return x.v===v;})[0]; return s?s.l:v; }
+/** Admin modal: a drive's applicants with a stage funnel and a per-student stage dropdown. */
 async function viewApplicants(id){
   _buildModal('Applicants', '<div style="padding:2rem">'+loadingHTML()+'</div>', '');
   try{
@@ -1194,6 +1247,7 @@ async function viewApplicants(id){
     var box=document.querySelector('#modalOverlay .modal-box'); if(box) box.style.maxWidth='600px';
   }catch(e){ _buildModal('Applicants', errorHTML(e.message), '<button class="btn-primary" onclick="closeModal()">Close</button>'); }
 }
+/** Move an applicant to a new stage; 'offered'/'placed' also captures the final offer package. */
 function moveAppStage(driveId, appId, stage){
   if(stage==='offered'||stage==='placed'){
     formModal({ title:(stage==='placed'?'Mark as Placed':'Record Offer'), submitLabel:'Save',
@@ -1208,12 +1262,14 @@ function moveAppStage(driveId, appId, stage){
   if(_demoMode){ toast('Stage updated (demo)','success'); return; }
   apiFetch('/placements/'+driveId+'/applications/'+appId,{method:'PATCH',body:JSON.stringify({status:stage})}).then(function(){ toast('Moved to '+plcStageLabel(stage),'success'); viewApplicants(driveId); }).catch(function(e){ toast(e.message,'error'); });
 }
+/** Show the stage-change history for one placement application. */
 async function appHistory(driveId, appId){
   try{ var res=await apiFetch('/placements/'+driveId); var d=(res.data&&(res.data.drive||res.data))||{}; var a=(d.applications||[]).filter(function(x){return String(x._id)===String(appId);})[0]||{}; var hs=a.history||[];
     var body=hs.length?hs.slice().reverse().map(function(x){ return '<div style="display:flex;gap:.6rem;padding:.45rem 0;border-bottom:1px solid var(--line)"><div style="font-weight:700;font-size:.82rem;min-width:90px">'+plcStageLabel(x.stage)+'</div><div style="font-size:.74rem;color:var(--muted)">'+fmtDate(x.at)+(x.note?' &bull; '+escHtml(x.note):'')+'</div></div>'; }).join(''):'<div style="color:var(--muted)">No stage changes yet.</div>';
     _buildModal('Stage History', body, '<button class="btn-primary" onclick="viewApplicants(\''+driveId+'\')">Back</button>');
   }catch(e){ toast(e.message,'error'); }
 }
+/** Student applies to a placement drive. */
 async function applyDrive(driveId) {
   try {
     await apiFetch('/placements/' + driveId + '/apply', { method: 'POST' });
@@ -1225,6 +1281,7 @@ async function applyDrive(driveId) {
 }
 
 var _annCache = {};
+/** Render the announcements feed; admins can post/edit/delete. */
 async function renderAnnouncements(role) {
   var res = await apiFetch('/announcements?limit=20');
   var anns = res.data || [];
@@ -1258,6 +1315,7 @@ async function renderAnnouncements(role) {
   }).join('');
   return head + '<div class="ann-list">' + rows + '</div>';
 }
+/** Shared add/edit announcement form. */
 function _annForm(title, submitLabel, initial, onSubmit){
   initial = initial || {};
   formModal({
@@ -1272,10 +1330,12 @@ function _annForm(title, submitLabel, initial, onSubmit){
     onSubmit:onSubmit
   });
 }
+/** Build the announcement API payload, mapping the audience choice to roles/public flags. */
 function _annPayload(v){
   var aud = v.audience==='all' ? { isPublic:true, roles:['student','mentor','admin'] } : { roles:[v.audience] };
   return { title:v.title, body:v.body, type:v.type, priority:v.priority, audience:aud };
 }
+/** Post a new announcement. */
 function addAnnouncement(){
   _annForm('New Announcement','Send Announcement',{}, async function(v){
     if(_demoMode){ toast('Announcement sent (demo)','success'); return refreshPage(); }
@@ -1283,6 +1343,7 @@ function addAnnouncement(){
     toast('Announcement sent','success'); refreshPage();
   });
 }
+/** Edit an existing announcement. */
 function editAnnouncement(id){
   var a=_annCache[id]||{};
   a._aud = (a.audience&&a.audience.isPublic)?'all':((a.audience&&a.audience.roles&&a.audience.roles[0])||'all');
@@ -1292,6 +1353,7 @@ function editAnnouncement(id){
     toast('Announcement updated','success'); refreshPage();
   });
 }
+/** Delete an announcement for everyone (behind a confirm). */
 function deleteAnnouncement(id){
   confirmModal('Delete Announcement','Delete this announcement for everyone?','Delete',async function(){
     if(_demoMode){ toast('Announcement deleted (demo)','success'); return refreshPage(); }
@@ -1301,6 +1363,7 @@ function deleteAnnouncement(id){
 
 // ── Placement drives (admin) ──
 var _drivesCache = {};
+/** Shared add/edit placement-drive form (pulls employers from the Company Database for the dropdown). */
 async function _driveForm(title, submitLabel, initial, onSubmit){
   initial = initial || {};
   var companies=[];
@@ -1328,12 +1391,14 @@ async function _driveForm(title, submitLabel, initial, onSubmit){
     onSubmit:onSubmit
   });
 }
+/** Build the placement-drive API payload (package range, dates, work mode, status). */
 function _drivePayload(v){
   return { company:v.company, role:v.role, description:v.description,
     package:{ min:Number(v.min), max:Number(v.max), currency:'INR' },
     applicationDeadline:v.applicationDeadline, vacancies:v.vacancies?Number(v.vacancies):undefined,
     workMode:v.workMode, status:v.status };
 }
+/** Publish a new placement drive. */
 function addDrive(){
   _driveForm('New Placement Drive','Publish Drive',{}, async function(v){
     if(_demoMode){ toast('Drive published (demo)','success'); return refreshPage(); }
@@ -1341,6 +1406,7 @@ function addDrive(){
     toast('Placement drive published','success'); refreshPage();
   });
 }
+/** Edit a placement drive. */
 function editDrive(id){
   _driveForm('Edit Drive','Save Changes', _drivesCache[id]||{}, async function(v){
     if(_demoMode){ toast('Drive updated (demo)','success'); return refreshPage(); }
@@ -1348,6 +1414,7 @@ function editDrive(id){
     toast('Drive updated','success'); refreshPage();
   });
 }
+/** Delete a placement drive (behind a confirm). */
 function deleteDrive(id){
   confirmModal('Delete Drive','Delete this placement drive?','Delete',async function(){
     if(_demoMode){ toast('Drive deleted (demo)','success'); return refreshPage(); }
@@ -1356,6 +1423,7 @@ function deleteDrive(id){
 }
 
 // ── Bulk student import (CSV) ──
+/** Open the bulk student-import modal (CSV file upload or pasted rows). */
 function importStudents(){
   var body =
     '<div style="font-size:.82rem;color:var(--ink2);line-height:1.6;margin-bottom:.8rem">Upload a CSV with columns <b>firstName, lastName, email, phone</b> (header row optional). Each student gets the default password <code style="background:var(--bg);padding:.1rem .3rem;border-radius:4px">Password123</code>.</div>'+
@@ -1367,15 +1435,18 @@ function importStudents(){
     '<div id="impProgress" style="font-size:.8rem;color:var(--muted);margin-top:.6rem"></div>';
   _buildModal('Import Students (Bulk)', body, '<button class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary" id="impBtn" onclick="runImportStudents()">Import</button>');
 }
+/** Download a sample CSV template for the bulk student import. */
 function downloadStudentTemplate(){
   exportCSV('students-template.csv', ['firstName','lastName','email','phone'], [['Riya','Sharma','riya@example.com','9876500000'],['Arjun','Mehta','arjun@example.com','9876500001']]);
 }
+/** Parse pasted/uploaded CSV text into rows, dropping an optional header row. */
 function _parseCSV(text){
   var rows = text.split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean)
     .map(function(l){ return l.split(',').map(function(c){ return c.trim().replace(/^"|"$/g,''); }); });
   if(rows.length && /first\s*name|e-?mail/i.test(rows[0].join(','))) rows.shift();
   return rows;
 }
+/** Run the bulk import: create one student account per CSV row, reporting successes and failures. */
 async function runImportStudents(){
   var err=document.getElementById('impErr'); err.style.display='none';
   var prog=document.getElementById('impProgress');

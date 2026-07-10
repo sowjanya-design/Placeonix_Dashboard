@@ -1,10 +1,13 @@
 /*
- * Placeonix Hub — dashboard application (vanilla JS, no framework).
- * Single-page app for the Admin / Mentor / Student portals.
- * Calls the REST API at /api/v1 (see docs/ARCHITECTURE.md).
- * Code is organised into banner-commented sections below.
+ * Placeonix Hub — Core namespace (vanilla JS, no framework).
+ * This is the foundation module and MUST load first: it defines the API client,
+ * global session state, the offline "demo mode" fallback, the ROLES/navigation
+ * config, auth (login/logout/auto-login), the page router, and the small helpers
+ * (date/time/HTML-escape) that every other module depends on.
+ * Talks to the REST API at /api/v1 — see docs/ARCHITECTURE.md.
  */
-// — API CLIENT —
+
+// ───────────────────────── API CLIENT ─────────────────────────
 // Local dev hits the standalone backend on :5000; in production (Vercel) the API
 // is served same-origin under /api/v1. Falls back to demo mode if unreachable.
 var API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
@@ -14,7 +17,10 @@ var _token = localStorage.getItem('plx_token') || null;
 var _currentUser = null;
 var _demoMode = false;
 
-// — DEMO DATA (used when backend is offline) —
+// ───────────────────────── DEMO DATA ─────────────────────────
+// Sample records that back "demo mode" — the portal stays fully clickable even
+// when no backend/database is connected (e.g. a fresh Vercel deploy). Everything
+// below is fixture data; the real app replaces it with API responses.
 var _DEMO_USERS = {
   'admin@placeonix.in':   { _id:'demo-adm', firstName:'Avinash', lastName:'Murari', email:'admin@placeonix.in',  role:'admin',  status:'active' },
   'mentor@placeonix.in':  { _id:'demo-mnt', firstName:'Priya',   lastName:'Sharma', email:'mentor@placeonix.in', role:'mentor', status:'active' },
@@ -102,6 +108,7 @@ var _DEMO_REVIEWS = [
   { _id:'rv2', author:{firstName:'Sneha',lastName:'Patil'}, rating:4, comment:'Great course content, would love more live projects.', targetType:'course', createdAt:new Date(Date.now()-7*864e5).toISOString() },
   { _id:'rv3', author:{firstName:'Karthik',lastName:'Iyer'}, rating:5, comment:'Got placed at TCS thanks to the placement support. Highly recommend!', targetType:'institute', createdAt:new Date(Date.now()-14*864e5).toISOString() }
 ];
+/** Build an ISO timestamp N days from now at hour h — keeps demo sessions relative to "today". */
 function _demoSessAt(days,h){ var d=new Date(); d.setDate(d.getDate()+days); d.setHours(h,0,0,0); return d.toISOString(); }
 var _DEMO_REC = ['https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4','https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4','https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4'];
 var _DEMO_BATCH_ON = { _id:'b-online', name:'Full Stack — Online Batch A', mode:'online' };
@@ -136,6 +143,7 @@ var _DEMO_ATT = (function(){
   return rows;
 })();
 
+/** The demo-mode "server": maps an API path to canned fixture data so every page can render offline. */
 function _demoResponse(path) {
   var p = path.split('?')[0];
   var role = _currentUser ? _currentUser.role : 'student';
@@ -183,8 +191,9 @@ function _demoResponse(path) {
   if (p.startsWith('/users')) return { success:true, data:[], meta:{total:0} };
   return { success:true, data:[], meta:{total:0,page:1,limit:20,pages:1} };
 }
-// —
+// ───────────────────────── FETCH WRAPPER ─────────────────────────
 
+/** The single gateway for every API call: attaches the auth token, parses JSON, throws on non-2xx, and short-circuits to demo data when offline. */
 async function apiFetch(path, opts) {
   if (_demoMode) {
     await new Promise(function(r){ setTimeout(r,180); });
@@ -204,6 +213,7 @@ async function apiFetch(path, opts) {
   return json;
 }
 
+/** Pin a fixed "Demo Mode" banner to the bottom of the screen so nobody mistakes sample data for live data. */
 function _showDemoBanner() {
   if (document.getElementById('demoBanner')) return;
   var b = document.createElement('div');
@@ -216,14 +226,17 @@ function _showDemoBanner() {
   if(pg) pg.style.paddingBottom='2.5rem';
 }
 
+/** Reusable centered spinner markup — every page shows this while its data is loading. */
 function loadingHTML() {
   return '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px;gap:16px"><div class="spin"></div><div style="color:var(--muted);font-size:.9rem">Loading...</div></div>';
 }
 
+/** Reusable inline error block shown when a page's data fetch fails. */
 function errorHTML(msg) {
   return '<div style="padding:40px;text-align:center;color:var(--red);font-size:.9rem">&#9888; ' + (msg || 'Something went wrong') + '</div>';
 }
 
+/** Copy the signed-in user's real name/initials/ID into the ROLES config so the sidebar & topbar show them (not the placeholders). */
 function populateROLES() {
   if (!_currentUser) return;
   var u = _currentUser;
@@ -240,6 +253,7 @@ function populateROLES() {
   }
 }
 
+/** On page load, silently restore a saved session via the stored token (or clear it if stale/demo). */
 async function autoLogin() {
   if (!_token) return;
   if (_token === 'demo') {
@@ -262,6 +276,7 @@ async function autoLogin() {
   }
 }
 
+/** Fetch the unread-notification count and toggle the red dot on the bell icon. */
 async function fetchNotifCount() {
   try {
     var res = await apiFetch('/notifications/unread-count');
@@ -271,9 +286,12 @@ async function fetchNotifCount() {
   } catch (e) {}
 }
 
+// Kick off session restore as soon as the DOM is ready.
 window.addEventListener('DOMContentLoaded', function () { autoLogin(); });
-// —
 
+// ───────────────────────── ROLES & NAVIGATION ─────────────────────────
+// Which pages each role sees, plus their sidebar identity. currentRole tracks
+// who is signed in; ROLES[currentRole].nav drives the sidebar menu.
 var currentRole = 'student';
 
 var ROLES = {
@@ -349,6 +367,7 @@ var ROLES = {
   }
 };
 
+/** Return inline SVG markup for a named icon — a tiny built-in icon set so we ship no icon-font/library. */
 function iconSvg(name){
   var icons={
     home:'<svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
@@ -374,6 +393,9 @@ function iconSvg(name){
   return icons[name] || icons['home'];
 }
 
+// ───────────────────────── AUTH (login / logout) ─────────────────────────
+
+/** One-tap demo login: pre-fills the known demo credentials for a role and submits. */
 function quickLogin(e, role) {
   currentRole = role;
   var emails = { admin: 'admin@placeonix.in', mentor: 'mentor@placeonix.in', student: 'student@placeonix.in' };
@@ -382,6 +404,7 @@ function quickLogin(e, role) {
   setTimeout(doLogin, 150);
 }
 
+/** Show/hide the login password field and swap the eye icon. */
 function togglePass() {
   var inp = document.getElementById('loginPass');
   var btn = document.getElementById('eyeBtn');
@@ -394,6 +417,7 @@ function togglePass() {
   }
 }
 
+/** Password-reset flow: request a reset token by email, then set the new password. */
 function forgotPassword(e){
   if(e && e.preventDefault) e.preventDefault();
   formModal({
@@ -419,6 +443,7 @@ function forgotPassword(e){
   });
 }
 
+/** Primary login handler: authenticate, store the token, reveal the app — and fall back to demo mode if the backend is unreachable. */
 async function doLogin() {
   var email = document.getElementById('loginEmail').value.trim();
   var password = document.getElementById('loginPass').value;
@@ -482,6 +507,7 @@ async function doLogin() {
   }
 }
 
+/** Log out: clear token/state, remove the demo banner, and reset the login form so nothing persists for the next user. */
 async function doLogout() {
   try { if(!_demoMode) await apiFetch('/auth/logout', { method: 'POST' }); } catch (e) {}
   _token = null;
@@ -504,6 +530,9 @@ async function doLogout() {
   setTimeout(function () { ls.style.transition = 'opacity .3s'; ls.style.opacity = '1'; }, 10);
 }
 
+// ───────────────────────── APP SHELL & ROUTER ─────────────────────────
+
+/** After a successful login, paint the sidebar/topbar identity, build the nav, and open the dashboard. */
 function initApp(role) {
   var cfg = ROLES[role];
   document.getElementById('sbAv').textContent = cfg.initials;
@@ -520,6 +549,7 @@ function initApp(role) {
   fetchNotifCount();
 }
 
+/** Render the sidebar menu items from a role's nav config, wiring each to showPage(). */
 function buildNav(nav){
   var html='';
   nav.forEach(function(item){
@@ -541,16 +571,21 @@ function setNavBadge(id, count){
   } else if(b){ b.remove(); }
 }
 
+/** Toggle the mobile sidebar drawer + its backdrop overlay. */
 function toggleSidebar(){
   var s=document.getElementById('sidebar'), o=document.getElementById('sbOverlay');
   var open = s.classList.toggle('open');
   if(o) o.classList.toggle('show', open);
 }
+/** Close the mobile sidebar (called after navigating so the drawer doesn't linger). */
 function closeSidebar(){
   var s=document.getElementById('sidebar'), o=document.getElementById('sbOverlay');
   if(s) s.classList.remove('open'); if(o) o.classList.remove('show');
 }
+// Tracks the active page id so refreshPage() (in ui.js) can re-render it.
 var _currentPage = 'dashboard';
+
+/** Navigate to a page: highlight its nav item, set the title, show a spinner, then render it. */
 async function showPage(id) {
   _currentPage = id;
   closeSidebar();
@@ -577,6 +612,7 @@ async function showPage(id) {
   }
 }
 
+/** The router table: map a page id to the right render function for the current role. */
 async function renderPage(id) {
   var r = currentRole;
   if (id === 'dashboard') return renderDashboard(r);
@@ -609,7 +645,9 @@ async function renderPage(id) {
   return '<div style="padding:2rem;text-align:center;color:var(--muted)">Coming soon</div>';
 }
 
-// — HELPERS —
+// ───────────────────────── HELPERS (formatting) ─────────────────────────
+
+/** Map a course category to a consistent emoji icon + background tint used on course cards. */
 function getCourseStyle(cat) {
   var m = {
     'Web Development': { ico: '&#128187;', bg: '#ede9fe' },
@@ -622,18 +660,24 @@ function getCourseStyle(cat) {
   };
   return m[cat] || { ico: '&#128218;', bg: '#f3f4f6' };
 }
+/** Format an ISO date as a short Indian-locale date (e.g. "7 Jul 2025"). */
 function fmtDate(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
+/** Format an ISO timestamp as a short local time (e.g. "06:00 PM"). */
 function fmtTime(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 }
-// —
-
+/** Escape user/content text before injecting into innerHTML — our XSS guard for string-built markup. */
 function escHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+// ───────────────────────── CALENDAR ─────────────────────────
+// _calRef = the month currently shown; _calEvents = merged sessions/assignments/drives.
 var _calRef=null, _calEvents=[];
+
+/** Build the calendar page: pull sessions, assignment due-dates and drive deadlines into one month grid. */
 async function renderCalendar(role){
   var r = await Promise.all([
     apiFetch('/sessions?limit=300').catch(function(){return {data:[]};}),
@@ -648,11 +692,13 @@ async function renderCalendar(role){
   if(!_calRef){ var n=new Date(); _calRef={y:n.getFullYear(),m:n.getMonth()}; }
   return '<div id="calWrap">'+calendarHTML()+'</div>';
 }
+/** Move the calendar to the previous/next month (delta ±1) or jump back to today (delta 0), then re-render. */
 function calShift(delta){
   if(delta===0){ var n=new Date(); _calRef={y:n.getFullYear(),m:n.getMonth()}; }
   else { _calRef.m+=delta; if(_calRef.m<0){_calRef.m=11;_calRef.y--;} if(_calRef.m>11){_calRef.m=0;_calRef.y++;} }
   var w=document.getElementById('calWrap'); if(w) w.innerHTML=calendarHTML();
 }
+/** Render the month grid HTML for _calRef: day cells, event chips, legend and an "Upcoming" list. */
 function calendarHTML(){
   var y=_calRef.y,m=_calRef.m;
   var first=new Date(y,m,1),startDow=first.getDay(),days=new Date(y,m+1,0).getDate();
@@ -680,6 +726,7 @@ function calendarHTML(){
   var upHtml=up.length?'<div class="section-head" style="margin-top:1.4rem"><span class="section-title">Upcoming</span></div><div class="ann-list">'+up.map(function(e){ return '<div class="ann-item"><div class="ann-dot" style="background:'+tc[e.type]+'"></div><div style="flex:1"><div class="ann-title">'+escHtml(e.title)+'</div><div class="ann-date">'+fmtDate(e.date)+(e.time?' &bull; '+escHtml(e.time):'')+(e.sub?' &bull; '+escHtml(e.sub):'')+'</div></div></div>'; }).join('')+'</div>':'';
   return head+legend+grid+upHtml;
 }
+/** Open a modal listing every event on a clicked calendar day. */
 function calDay(d){
   var y=_calRef.y,m=_calRef.m;
   var evs=_calEvents.filter(function(e){return e.date.getFullYear()===y&&e.date.getMonth()===m&&e.date.getDate()===d;}).sort(function(a,b){return a.date-b.date;});
@@ -687,13 +734,17 @@ function calDay(d){
   var body=evs.map(function(e){ return '<div style="display:flex;gap:.6rem;padding:.5rem 0;border-bottom:1px solid var(--line)"><div style="width:8px;height:8px;border-radius:3px;background:'+tc[e.type]+';margin-top:.4rem;flex-shrink:0"></div><div><div style="font-weight:700;font-size:.86rem">'+escHtml(e.title)+'</div><div style="font-size:.74rem;color:var(--muted)">'+(e.time?escHtml(e.time)+' &bull; ':'')+escHtml(e.sub||'')+'</div></div></div>'; }).join('');
   _buildModal(new Date(y,m,d).toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'}), body||'<div style="color:var(--muted)">No events.</div>', '<button class="btn-primary" onclick="closeModal()">Close</button>');
 }
+// ───────────────────────── GLOBAL SEARCH (admin/mentor topbar) ─────────────────────────
 var _gsTimer=null;
+
+/** Debounce the topbar search box so we only hit /search after the user pauses typing (2+ chars). */
 function gsInput(q){
   clearTimeout(_gsTimer);
   var box=document.getElementById('gsResults');
   if(!q || q.trim().length<2){ if(box){box.classList.remove('show'); box.innerHTML='';} return; }
   _gsTimer=setTimeout(function(){ gsRun(q.trim()); }, 220);
 }
+/** Run the search query and render the results dropdown (colour-coded by result type). */
 async function gsRun(q){
   var box=document.getElementById('gsResults'); if(!box) return;
   try{
@@ -709,6 +760,7 @@ async function gsRun(q){
     box.classList.add('show');
   }catch(e){ box.innerHTML='<div class="gs-empty">Search unavailable</div>'; box.classList.add('show'); }
 }
+/** Handle a search-result click: close the dropdown, navigate to the page, and open the record's detail modal. */
 function gsGo(page, type, id){
   var box=document.getElementById('gsResults'); if(box) box.classList.remove('show');
   var inp=document.getElementById('gsearch'); if(inp) inp.value='';
@@ -716,7 +768,12 @@ function gsGo(page, type, id){
   var kind = (type==='student'||type==='mentor')?'user':type;
   if(kind==='user'||kind==='course'||kind==='batch'){ setTimeout(function(){ try{ viewEntity(kind, id); }catch(e){} }, 360); }
 }
+// Close the search results dropdown when clicking anywhere outside it.
 document.addEventListener('click', function(e){ var w=document.getElementById('gsearchWrap'); var b=document.getElementById('gsResults'); if(w&&b&&!w.contains(e.target)) b.classList.remove('show'); });
+
+// ───────────────────────── COMPANIES (employer database) ─────────────────────────
+
+/** Render the companies page — a reusable employer directory that placement drives link to. */
 async function renderCompanies(){
   var res = await apiFetch('/companies').catch(function(){ return {data:[]}; });
   var items = res.data || [];
@@ -735,6 +792,7 @@ async function renderCompanies(){
     '<div class="mode-note online" style="margin-bottom:1.1rem"><div>&#127970; Reusable employer profiles. Add a company here, then attach it to placement drives.</div></div>'+
     '<div class="course-list">'+cards+'</div>';
 }
+/** Shared add/edit company form (kept in one place so both flows stay in sync). */
 function _companyForm(title, initial, onSubmit){
   initial=initial||{};
   formModal({ title:title, submitLabel:'Save',
@@ -751,6 +809,7 @@ function _companyForm(title, initial, onSubmit){
     onSubmit:onSubmit
   });
 }
+/** Create a new employer record. */
 function addCompany(){
   _companyForm('Add Company', {}, async function(v){
     if(_demoMode){ toast('Company added (demo)','success'); return refreshPage(); }
@@ -758,6 +817,7 @@ function addCompany(){
     toast('Company added','success'); refreshPage();
   });
 }
+/** Edit an existing employer record (fetches current values, then reuses the shared form). */
 async function editCompany(id){
   var c={};
   if(!_demoMode){ try{ var r=await apiFetch('/companies'); c=(r.data||[]).filter(function(x){return String(x._id)===String(id);})[0]||{}; }catch(e){} }
@@ -767,6 +827,7 @@ async function editCompany(id){
     toast('Company updated','success'); refreshPage();
   });
 }
+/** Delete an employer record (behind a confirm dialog). */
 function deleteCompany(id, name){
   confirmModal('Delete '+(name||'company')+'?','Remove this company from the database?','Delete',async function(){
     if(_demoMode){ toast('Removed (demo)','success'); return refreshPage(); }
@@ -774,6 +835,7 @@ function deleteCompany(id, name){
     toast('Company removed','success'); refreshPage();
   });
 }
+/** Build the admin placement-analytics block: KPI cards, a hiring funnel and placed-by-course breakdown. */
 function placementAnalyticsHTML(an){
   var stages=[{v:'applied',l:'Applied'},{v:'shortlisted',l:'Shortlisted'},{v:'interview_scheduled',l:'Interview'},{v:'offered',l:'Offered'},{v:'placed',l:'Placed'}];
   var sc={applied:'#64748b',shortlisted:'#2563eb',interview_scheduled:'#d97706',offered:'#7c3aed',placed:'#059669'};

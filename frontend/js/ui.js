@@ -1,32 +1,52 @@
 /*
- * Placeonix Hub — Shared UI framework: toast + modal builders, CSV export, notifications.
- * Part of the dashboard app; loaded after core.js (see the HTML).
+ * Placeonix Hub — UI namespace.
+ * Shared building blocks the rest of the app leans on: toast notifications,
+ * the modal/dialog framework (confirm, detail, form), CSV export, and the
+ * notifications panel. Kept in one place so every feature module gets a
+ * consistent look and behaviour instead of hand-rolling its own dialogs.
+ * Loaded after core.js (needs apiFetch, fmtDate, showPage, _currentPage).
  */
-// ───────────────────────── TOAST + MODAL FRAMEWORK ─────────────────────────
-// ── CSV export ──
+
+// ───────────────────────── CSV EXPORT ─────────────────────────
+// Caches populated by the entities module when their tables render, so the
+// export buttons can dump exactly what the admin is looking at.
 var _studentsCache=[], _leadsCache=[], _paymentsCache=[];
+
+/** Escape one value for a CSV cell — doubles quotes and wraps if it holds a comma/quote/newline. */
 function _csvCell(v){ var s=(v==null?'':String(v)).replace(/"/g,'""'); return /[",\n]/.test(s)?'"'+s+'"':s; }
+
+/** Build a CSV from headers+rows and trigger a browser download (no backend round-trip). */
 function exportCSV(filename, headers, rows){
   var csv=[headers.join(',')].concat(rows.map(function(r){return r.map(_csvCell).join(',');})).join('\n');
   var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); var url=URL.createObjectURL(blob);
   var a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click();
   a.remove(); URL.revokeObjectURL(url); toast('Exported '+rows.length+' rows','success');
 }
+
+/** Export the currently-loaded students table to students.csv (admin "Export" action). */
 function exportStudents(){
   exportCSV('students.csv', ['Name','Email','Phone','Status'], _studentsCache.map(function(u){
     return [((u.firstName||'')+' '+(u.lastName||'')).trim(), u.email||'', u.phone||'', u.status||''];
   }));
 }
+
+/** Export the leads pipeline to leads.csv so admissions can work it offline. */
 function exportLeads(){
   exportCSV('leads.csv', ['Name','Email','Phone','Interested In','Source','Status'], _leadsCache.map(function(l){
     return [((l.firstName||'')+' '+(l.lastName||'')).trim(), l.email||'', l.phone||'', l.courseInterestedName||'', l.source||'', l.status||''];
   }));
 }
+
+/** Export payment records to payments.csv for finance/reconciliation. */
 function exportPayments(){
   exportCSV('payments.csv', ['Student','Amount','Method','Status','Date'], _paymentsCache.map(function(p){
     var s=p.student||{}; return [((s.firstName||'')+' '+(s.lastName||'')).trim(), p.amount||0, p.method||'', p.status||'', fmtDate(p.paidOn||p.createdAt)];
   }));
 }
+
+// ───────────────────────── MODAL FRAMEWORK ─────────────────────────
+
+/** Red "are you sure?" dialog for destructive actions; runs onConfirm with an inline busy state. */
 function confirmModal(title, message, confirmLabel, onConfirm){
   var body = '<div style="font-size:.9rem;color:var(--ink2);line-height:1.55">'+message+'</div>';
   var foot = '<button class="btn-secondary" onclick="closeModal()">Cancel</button>'+
@@ -38,6 +58,8 @@ function confirmModal(title, message, confirmLabel, onConfirm){
     catch(e){ b.disabled=false; b.textContent=orig; toast(e.message||'Action failed','error'); }
   };
 }
+
+/** Show a transient toast (info/success/error) that auto-dismisses after 3s — our only "flash message" channel. */
 function toast(msg, type){
   var wrap = document.getElementById('toastWrap');
   if(!wrap){ wrap=document.createElement('div'); wrap.id='toastWrap'; document.body.appendChild(wrap); }
@@ -49,10 +71,13 @@ function toast(msg, type){
   setTimeout(function(){ t.style.transition='opacity .3s,transform .3s'; t.style.opacity='0'; t.style.transform='translateX(20px)'; setTimeout(function(){ t.remove(); },300); }, 3000);
 }
 
+/** Dismiss whatever modal is currently open (animates out, then removes the node). */
 function closeModal(){
   var ov = document.getElementById('modalOverlay');
   if(ov){ ov.classList.remove('show'); setTimeout(function(){ ov.remove(); },200); }
 }
+
+/** Internal: assemble the overlay + box shell shared by every modal variant. Not called directly by features. */
 function _buildModal(title, bodyHTML, footHTML){
   closeModal();
   var ov = document.createElement('div');
@@ -69,7 +94,7 @@ function _buildModal(title, bodyHTML, footHTML){
   return ov;
 }
 
-// Generic detail modal: rows = [[key,value],...]
+/** Read-only key/value modal (rows = [[label,value],...]) — used for "view details" popups. */
 function detailModal(title, rows, extraHTML){
   var body = rows.map(function(r){
     return '<div class="modal-detail-row"><span class="k">'+r[0]+'</span><span class="v">'+(r[1]==null||r[1]===''?'—':r[1])+'</span></div>';
@@ -77,8 +102,11 @@ function detailModal(title, rows, extraHTML){
   _buildModal(title, body, '<button class="btn-primary" onclick="closeModal()">Close</button>');
 }
 
-// Generic form modal.
-// opts:{ title, fields:[{name,label,type,value,options,required,placeholder,help}], submitLabel, onSubmit(values) }
+/**
+ * Generic form dialog — the single "add/edit" surface reused across all modules.
+ * opts:{ title, fields:[{name,label,type,value,options,required,placeholder,help}], submitLabel, onSubmit(values) }
+ * Handles required-field validation, an inline error banner, and a busy submit button.
+ */
 function formModal(opts){
   var fieldsHTML = opts.fields.map(function(f){
     var id='mf_'+f.name;
@@ -121,16 +149,23 @@ function formModal(opts){
   };
 }
 
+/** Re-render the page the user is currently on — the standard "refresh after a mutation" hook. */
 function refreshPage(){ showPage(_currentPage); }
+
+/** Fetch a list endpoint and map it into {value,label} options for a form <select>. */
 async function loadOptions(path, labelFn){
   try{ var res=await apiFetch(path); var arr=res.data||[];
     if(arr.students) arr=arr.students;
     return arr.map(function(x){ return { value:x._id, label:labelFn(x) }; });
   }catch(e){ return []; }
 }
+
+/** Best-effort display name for a user (first+last, falling back to email). */
 function fullName(u){ return ((u.firstName||'')+' '+(u.lastName||'')).trim()||u.email||'—'; }
 
 // ───────────────────────── NOTIFICATIONS ─────────────────────────
+
+/** Open the notifications panel: clears the unread dot, marks all read, then lists recent items. */
 async function openNotifications(){
   var _nd=document.getElementById('notifDot'); if(_nd) _nd.style.display='none';
   if(!_demoMode){ apiFetch('/notifications/read-all',{method:'PATCH'}).catch(function(){}); } else { (_DEMO_NOTIFS||[]).forEach(function(n){n.read=true;}); }
@@ -149,6 +184,8 @@ async function openNotifications(){
     _buildModal('Notifications', body, foot);
   }catch(e){ _buildModal('Notifications', errorHTML(e.message), '<button class="btn-primary" onclick="closeModal()">Close</button>'); }
 }
+
+/** Mark every notification read and hide the unread dot (called from the panel's footer button). */
 async function markAllNotifs(){
   try{ await apiFetch('/notifications/read-all',{method:'PATCH'}); }catch(e){}
   var dot=document.getElementById('notifDot'); if(dot) dot.style.display='none';
